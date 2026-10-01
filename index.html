@@ -150,6 +150,13 @@ color:var(--acc2);border-radius:8px;padding:6px 10px}
 .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
 @keyframes bl{0%,80%,100%{opacity:.25}40%{opacity:1}}
 
+/* Choices Bar */
+.choice-container{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.choice-chip{background:var(--bg3);border:1px solid var(--acc);color:var(--acc2);font-size:12px;
+padding:6px 12px;border-radius:8px;cursor:pointer;transition:.15s;text-align:left}
+.choice-chip:hover{background:rgba(201,162,39,.2);transform:translateY(-1px)}
+.choice-chip:active{transform:scale(.98)}
+
 /* Dice Box */
 #dice-box{text-align:center;padding:12px;background:rgba(91,141,239,.1);border:1px dashed var(--blue);
 border-radius:10px;margin-top:8px;flex:0 0 auto}
@@ -187,7 +194,7 @@ background:var(--bg3);border:1px dashed var(--acc);border-radius:10px;padding:10
 <!-- ================= HOME ================= -->
 <section id="home" class="screen active">
   <h1>⚔️ PLAPAO The GM</h1>
-  <div class="sub">Text RPG ออนไลน์ 2 ผู้เล่น — รองรับจัดการห้องและหน้าจอแบบ Fit Screen</div>
+  <div class="sub">Text RPG ออนไลน์ 2 ผู้เล่น — พร้อมตัวเลือกการกระทำแนะนำ & Fit Screen</div>
 
   <div class="card">
     <h2>ห้องที่เปิดอยู่</h2>
@@ -234,10 +241,10 @@ background:var(--bg3);border:1px dashed var(--acc);border-radius:10px;padding:10
     </select>
     <div id="custom-genre-box" class="hidden" style="margin-top:8px">
       <label>พิมพ์แนวเรื่องของคุณ</label>
-      <input id="in-custom-genre" placeholder="เช่น ดันเจี้ยนใต้พิภพ, โลกโจรสลัดอวกาศ...">
+      <input id="in-custom-genre" placeholder="เช่น ดันเจี้ยนใต้พิภพ, โรงเรียนเวทมนตร์...">
     </div>
     <label style="margin-top:10px">รายละเอียดโลก / ฉากเปิด (ไม่ใส่ก็ได้)</label>
-    <textarea id="in-setting" placeholder="เช่น พวกเราเริ่มที่เมืองท่าโบราณ กำลังมองหาเบาะแส..."></textarea>
+    <textarea id="in-setting" placeholder="เช่น พวกเราเริ่มที่โรงเตี๊ยมใต้ดิน กำลังหาเบาะแส..."></textarea>
   </div>
   <div class="card">
     <h2>ตัวละครของคุณ (ผู้เล่น 1)</h2>
@@ -379,6 +386,12 @@ background:var(--bg3);border:1px dashed var(--acc);border-radius:10px;padding:10
         <div class="whoami" id="whoami"></div>
 
         <div id="panel-action">
+          <!-- กล่องตัวเลือกการกระทำแนะนำ (Choice Chips) -->
+          <div id="choice-box" class="hidden" style="margin-bottom:8px">
+            <div style="font-size:11px;color:var(--acc2);margin-bottom:4px">💡 ตัวเลือกการกระทำที่แนะนำ (กดเพื่อเลือกหรือพิมพ์เองได้):</div>
+            <div class="choice-container" id="choice-list"></div>
+          </div>
+
           <textarea id="in-action" placeholder="พิมพ์สิ่งที่ตัวละครของคุณจะทำ..."></textarea>
           <div class="row">
             <button id="btn-send" onclick="sendAction()">ส่ง Action</button>
@@ -431,7 +444,7 @@ let sb=null,busy=false,currentTab='action',editingRoomCode=null;
 const BASE={hp:20,maxHp:20,atk:5,def:3,gold:0,exp:0,level:1,items:[]};
 const state={
   room:null,status:'lobby',genre:'',setting:'',worldSummary:'',
-  activeQuests:[],metNpcs:[],storyLogs:[],seats:{},online:new Set(),
+  activeQuests:[],metNpcs:[],storyLogs:[],currentChoices:[],seats:{},online:new Set(),
   turnCount:1,actingPlayer:1,pendingRoll:null,lastActionText:'',gmBusy:false,mySeat:0,
   players:{1:null,2:null}
 };
@@ -485,7 +498,7 @@ function initSupabase(){
 }
 
 /* ==========================================================
-   TAG ENGINE & STAT REWARDS
+   TAG ENGINE & REWARDS
    ========================================================== */
 const TAG={
   itemAdd:/\[\s*ITEM_ADD\s*[:|]\s*(P[12])\s*\|\s*([^\]|]+?)\s*\]/gi,
@@ -494,6 +507,7 @@ const TAG={
   questAdd:/\[\s*QUEST_ADD\s*[:|]\s*([^\]]+?)\s*\]/gi,
   questDone:/\[\s*QUEST_DONE\s*[:|]\s*([^\]]+?)\s*\]/gi,
   npc:/\[\s*NPC_MET\s*[:|]\s*([^\]]+?)\s*\]/gi,
+  choices:/\[\s*CHOICES\s*[:|]\s*([^\]]+?)\s*\]/gi,
   leftover:/\[\s*[A-Z][A-Z_]{2,}\s*[:|][^\]]*\]/g
 };
 const FIELD={HP:'hp',MAXHP:'maxHp',ATK:'atk',DEF:'def',GOLD:'gold',EXP:'exp',LEVEL:'level'};
@@ -560,11 +574,19 @@ function processGmRewardsAndStats(responseText){
     if(n&&!state.metNpcs.includes(n)){state.metNpcs.push(n);changed=true;}
   }
 
+  // แยกดึงตัวเลือกที่แนะนำ
+  const foundChoices=[...raw.matchAll(TAG.choices)];
+  if(foundChoices.length){
+    const lastChoiceRaw=foundChoices[foundChoices.length-1][1];
+    state.currentChoices=lastChoiceRaw.split('|').map(s=>s.trim()).filter(Boolean);
+    changed=true;
+  }
+
   const cleaned=raw.replace(TAG.itemAdd,'').replace(TAG.itemRemove,'').replace(TAG.stat,'')
-    .replace(TAG.questAdd,'').replace(TAG.questDone,'').replace(TAG.npc,'')
+    .replace(TAG.questAdd,'').replace(TAG.questDone,'').replace(TAG.npc,'').replace(TAG.choices,'')
     .replace(TAG.leftover,'').replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
 
-  renderStats();renderBags();renderQuests();
+  renderStats();renderBags();renderQuests();renderChoices();
   if(changed)queueSave();
   return {cleanedText:cleaned,notifications:notes};
 }
@@ -624,6 +646,30 @@ function renderQuests(){
   el('quest-list').innerHTML=qs.map(q=>'<li>'+esc(q)+'</li>').join('');
   el('quest-empty').style.display=qs.length?'none':'block';
 }
+
+function renderChoices(){
+  const box=el('choice-box');
+  const list=el('choice-list');
+  const choices=state.currentChoices||[];
+  const isMyTurn=state.status==='playing'&&state.actingPlayer===state.mySeat&&state.pendingRoll==null;
+
+  if(!choices.length||!isMyTurn){
+    box.classList.add('hidden');
+    return;
+  }
+
+  box.classList.remove('hidden');
+  list.innerHTML=choices.map(c=>{
+    return '<button class="choice-chip" onclick="pickChoice(\''+esc(c).replace(/'/g,"\\'")+'\')">👉 '+esc(c)+'</button>';
+  }).join('');
+}
+
+function pickChoice(text){
+  const input=el('in-action');
+  input.value=text;
+  input.focus();
+}
+
 function msgHtml(m){
   if(m.role==='sys')return '<div class="msg sys">'+esc(m.text)+'</div>';
   if(m.role==='notif')return '<div class="msg notif">'+esc(m.text)+'</div>';
@@ -672,7 +718,9 @@ function updateTurnUI(){
   el('btn-send').disabled=busy||!mine||needRoll||state.gmBusy;
   el('in-action').disabled=!mine||needRoll;
   el('in-action').placeholder=!state.mySeat?'คุณอยู่ในโหมดผู้ชม':
-    (needRoll?'กำลังรอการทอยลูกเต๋า D20...':(mine?'พิมพ์การกระทำของ '+nameOf(state.mySeat)+' ในเทิร์นนี้...':'รอ '+nameOf(state.actingPlayer)+' เล่นจบเทิร์นก่อน…'));
+    (needRoll?'กำลังรอการทอยลูกเต๋า D20...':(mine?'พิมพ์การกระทำ หรือเลือกจากตัวเลือกแนะนำด้านบน...':'รอ '+nameOf(state.actingPlayer)+' เล่นจบเทิร์นก่อน…'));
+  
+  renderChoices();
 }
 
 function renderLobby(){
@@ -692,7 +740,7 @@ function renderLobby(){
   el('lobby-start').textContent=both?'เริ่มการผจญภัย':'เริ่มเลย (คนเดียว)';
   el('lobby-hint').textContent=host?(both?'ทุกคนพร้อมแล้ว เริ่มได้เลย!':'รออีกคนเข้าร่วม หรือกดเริ่มคนเดียวได้'):'รอผู้เล่น 1 กดเริ่มเกม…';
 }
-function updateUI(){renderStats();renderBags();renderQuests();updateTurnUI();renderLobby();}
+function updateUI(){renderStats();renderBags();renderQuests();updateTurnUI();renderLobby();renderChoices();}
 
 /* ==========================================================
    SUPABASE DATA SYNC & REALTIME
@@ -807,7 +855,7 @@ async function loadRoomList(){
           ' · '+(r.status==='lobby'?'กำลังรอ':'เทิร์น '+r.turn_count)+' · '+timeAgo(r.updated_at)+'</span>'+tag+
         '</div>'+
         '<div class="ritem-actions">'+
-          '<button class="ghost sm" title="แก้ไขชื่อห้อง/ตัวละคร" onclick="openEditModal(\''+r.room_code+'\')">✏️</button>'+
+          '<button class="ghost sm" title="แก้ไขชื่อห้อง/ตัวละคร" onclick="openEditModal(\''+r.room_code+'\')">✏️️</button>'+
           '<button class="danger sm" title="ลบห้องนี้" onclick="deleteRoom(\''+r.room_code+'\')">🗑️</button>'+
         '</div>'+
       '</div>';
@@ -817,7 +865,6 @@ async function loadRoomList(){
   }
 }
 
-/* --- EDIT ROOM MODAL LOGIC --- */
 async function openEditModal(code){
   if(!sb)return;
   editingRoomCode=code;
@@ -910,7 +957,7 @@ async function createRoom(){
   state.genre=g;state.setting=val('in-setting').trim();
   state.players={1:Object.assign({},BASE,{name:nm,class:val('host-class').trim()||'นักผจญภัย',items:[]}),2:null};
   state.seats={1:{client_id:CLIENT_ID,joined_at:Date.now()}};
-  state.storyLogs=[];state.activeQuests=[];state.metNpcs=[];
+  state.storyLogs=[];state.activeQuests=[];state.metNpcs=[];state.currentChoices=[];
   state.turnCount=1;state.actingPlayer=1;state.pendingRoll=null;
   state.status='lobby';state.mySeat=1;
   await flushSave();
@@ -1020,20 +1067,23 @@ function leaveRoom(){
 }
 
 /* ==========================================================
-   AI GM ENGINE
+   AI GM ENGINE & PROMPT
    ========================================================== */
 const SYSTEM_GM_PROMPT=[
 'คุณคือ "PLAPAO The GM" ผู้ดำเนินเรื่อง Text RPG ออนไลน์ภาษาไทย สำหรับผู้เล่น 2 คน',
 '',
-'[กฎเหล็กเรื่องเทิร์นและการดำเนินเรื่อง]',
+'[กฎเหล็กเรื่องเทิร์น ตัวเลือก และการดำเนินเรื่อง]',
 '1. ในเนื้อเรื่อง ห้ามเรียกผู้เล่นว่า P1, P2 หรือ ผู้เล่น 1, 2 เด็ดขาด ให้เรียกด้วย "ชื่อตัวละครจริง" เสมอ',
 '2. ในแต่ละข้อความที่คุณตอบ ให้ปฏิบัติตามลำดับนี้อย่างเคร่งครัด:',
 '   - ย่อหน้าแรก: บรรยายผลลัพธ์จาก Action และแต้มเต๋าของคนที่เพิ่งเล่นจบไป ให้เห็นผลชัดเจนและมีอารมณ์ร่วม',
 '   - ย่อหน้าถัดไป: อธิบายสถานการณ์สิ่งแวดล้อมรอบตัว ศัตรู หรือเหตุการณ์ที่กำลังดำเนินต่อ',
 '   - ย่อหน้าสุดท้าย: สรุปอย่างชัดเจนว่า "ต่อไปถึงตาของ [ชื่อตัวละครคนถัดไป]" และตั้งคำถามว่าเขาจะทำอย่างไร',
-'3. ห้ามตัดสินใจหรือกระทำสิ่งสำคัญแทนผู้เล่นโดยเด็ดขาด บรรยายเฉพาะสิ่งที่เกิดกับพวกเขา',
-'4. ห้ามพิมพ์เลขสถานะในเนื้อหา เช่น "เลือดเหลือ 10" ให้บรรยายเป็นแผล รอยฉีกขาด หรือความเหนื่อยล้า แล้วใช้แท็กระบบเท่านั้น',
-'5. แท็กผลกระทบ (แนบท้ายข้อความบรรทัดละ 1 แท็ก):',
+'3. [สำคัญมาก - ตัวเลือกแนะนำ]: ทุกครั้งที่บรรยายจบ ให้คิดตัวเลือกการกระทำที่สมเหตุสมผลและน่าตื่นเต้น 3-4 ทางเลือก สำหรับผู้เล่นคนที่กำลังถึงตา แล้วแนบท้ายด้วยแท็กนี้เสมอ:',
+'   [CHOICES: ตัวเลือกที่ 1 | ตัวเลือกที่ 2 | ตัวเลือกที่ 3 | ตัวเลือกที่ 4]',
+'   (เช่น [CHOICES: ชักดาบพุ่งเข้าโจมตี | ร่ายเวทบาเรียป้องกันเพื่อน | แอบย่องสำรวจหาทางหนี | ตะโกนข่มขู่ศัตรู])',
+'4. ห้ามตัดสินใจหรือกระทำสิ่งสำคัญแทนผู้เล่นโดยเด็ดขาด บรรยายเฉพาะสิ่งที่เกิดกับพวกเขา',
+'5. ห้ามพิมพ์เลขสถานะในเนื้อหา เช่น "เลือดเหลือ 10" ให้บรรยายเป็นแผล รอยฉีกขาด หรือความเหนื่อยล้า แล้วใช้แท็กระบบเท่านั้น',
+'6. แท็กผลกระทบ (แนบท้ายข้อความบรรทัดละ 1 แท็ก):',
 '   [ITEM_ADD: P1 | ชื่อไอเทม]',
 '   [ITEM_REMOVE: P1 | ชื่อไอเทม]',
 '   [STAT_UPDATE: P1 | HP:-5]        (สเตตัส: HP, MAXHP, ATK, DEF, GOLD, LEVEL)',
@@ -1041,8 +1091,8 @@ const SYSTEM_GM_PROMPT=[
 '   [QUEST_ADD: รายละเอียดภารกิจหรือเบาะแส]',
 '   [QUEST_DONE: ชื่อภารกิจ]',
 '   [NPC_MET: ชื่อ NPC]',
-'6. ทุกไอเทมและเงินทองจะเพิ่มเข้าตัวได้ ก็ต่อเมื่อคุณส่งแท็กระบบเท่านั้น ผู้เล่นเริ่มจาก 0',
-'7. การใช้ภาษา: ใช้ภาษาไทยที่สนุก น่าติดตาม บรรยายกระชับ (ประมาณ 2-3 ย่อหน้า)'
+'   [CHOICES: ทางเลือก A | ทางเลือก B | ทางเลือก C]',
+'7. การใช้ภาษา: ใช้ภาษาไทยที่สนุก น่าติดตาม บรรยายกระชับ มีจังหวะลุ้นระทึก (ประมาณ 2-3 ย่อหน้า)'
 ].join('\n');
 
 function buildStateContext(){
@@ -1121,7 +1171,7 @@ async function startAdventure(){
   const names=[1,2].map(i=>state.players[i]?('"'+state.players[i].name+'" ('+state.players[i].class+')'):null)
     .filter(Boolean).join(' และ ');
   const opener=buildStateContext()+'\n\n[คำสั่งสำหรับฉากเปิด]\nบรรยายเปิดฉากแรกของการผจญภัย แนะนำโลกและสถานการณ์เริ่มต้นตามแนวเรื่อง '+state.genre+' '+
-    'โดยมีผู้ร่วมผจญภัยคือ '+names+' และจบข้อความด้วยการส่งเทิร์นถามการกระทำของ "'+nameOf(1)+'" คนแรก';
+    'โดยมีผู้ร่วมผจญภัยคือ '+names+' และจบข้อความด้วยการส่งเทิร์นถามการกระทำของ "'+nameOf(1)+'" คนแรก พร้อมแท็ก [CHOICES: ...] 3-4 ทางเลือก';
   await runGm(opener,'sys','— การผจญภัยเริ่มต้นขึ้นอย่างเป็นทางการ —',false);
 }
 
@@ -1136,6 +1186,7 @@ function sendAction(){
   el('in-action').value='';
   state.lastActionText=text;
   state.pendingRoll=state.mySeat;
+  state.currentChoices=[]; // ล้างตัวเลือกเก่าเมื่อส่ง Action
   pushLog('p'+state.mySeat,text,nameOf(state.mySeat));
   toast('ส่งการกระทำแล้ว! กดทอยเต๋า D20 เพื่อตัดสินผล','gain');
   queueSave(50);
@@ -1173,7 +1224,8 @@ async function executeDiceRoll(){
       '[คำสั่งสำหรับ GM]:\n'+
       '1. ตัดสินผลลัพธ์ของ "'+nameOf(who)+'" ตามแต้มเต๋าที่ได้\n'+
       '2. คำนวณความเสียหาย/ได้รับของ/พบเบาะแส แนบแท็กระบบตามจริง\n'+
-      '3. ย่อหน้าสุดท้าย ให้ส่งเทิร์นต่อและถาม Action ของ "'+nameOf(other(who))+'" อย่างเจาะจง';
+      '3. ส่งเทิร์นต่อและถาม Action ของ "'+nameOf(other(who))+'" อย่างเจาะจง\n'+
+      '4. เสนอแท็ก [CHOICES: ...] 3-4 ทางเลือกสำหรับ "'+nameOf(other(who))+'" เสมอ';
 
     state.lastActionText='';
     await runGm(p,null,null,true);
@@ -1206,6 +1258,7 @@ async function shortRest(){
 
   state.lastActionText='หาที่ปลอดภัยเพื่อหยุดพักฟื้นฟูร่างกายและสมาธิ';
   state.pendingRoll=state.mySeat;
+  state.currentChoices=[];
   pushLog('p'+state.mySeat,state.lastActionText,nameOf(state.mySeat));
   toast('ตั้งค่ายพักฟื้น! ทอยเต๋า D20 เพื่อดูว่าราบรื่นหรือไม่','gain');
   queueSave(50);
