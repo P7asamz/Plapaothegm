@@ -1,1427 +1,1224 @@
 <!DOCTYPE html>
-<html lang="th" class="h-full">
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>PLAPAO The GM - 2 Player Pixel RPG</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            pixel: ['"Press Start 2P"', 'monospace'],
-            vt: ['"VT323"', 'monospace'],
-            sans: ['"Sarabun"', 'sans-serif']
-          },
-          colors: {
-            pix: {
-              black: '#0f0f11',
-              dark: '#1a1a1e',
-              panel: '#24242c',
-              border: '#4a4a58',
-              light: '#e0e0eb',
-              white: '#ffffff',
-              accent1: '#3b82f6',
-              accent2: '#ec4899',
-              gm: '#eab308'
-            }
-          }
-        }
-      }
-    }
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLAPAO The GM — Online Text RPG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0d0f14;--bg2:#151923;--bg3:#1d2230;--line:#2b3242;--txt:#e6e9f0;--mut:#8b94a7;
+--acc:#c9a227;--acc2:#f0d27a;--hp:#3ecf8e;--mid:#f0b429;--low:#e5484d;--blue:#5b8def;--pink:#e07be0;--cyan:#00d2ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI","Noto Sans Thai",system-ui,sans-serif;line-height:1.6}
+.screen{display:none;max-width:1180px;margin:0 auto;padding:16px}
+.screen.active{display:block}
+h1{font-size:26px;margin:18px 0 4px;color:var(--acc2);letter-spacing:1px}
+h2{font-size:17px;margin:16px 0 8px;color:var(--acc)}
+.sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;background:var(--bg3);border:1px solid var(--line);color:var(--txt);
+border-radius:10px;padding:11px 12px;font-size:15px;font-family:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--acc)}
+textarea{resize:vertical;min-height:78px}
+button{background:var(--acc);color:#1a1405;border:0;border-radius:10px;padding:12px 18px;font-size:15px;
+font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+button:hover{filter:brightness(1.1)}button:active{transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+button.blue{background:var(--blue);color:#fff}
+button.cyan{background:var(--cyan);color:#08131d}
+button.danger{background:rgba(229,72,77,.15);border:1px solid var(--low);color:var(--low)}
+button.danger:hover{background:var(--low);color:#fff}
+button.sm{padding:6px 11px;font-size:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.hidden{display:none!important}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);display:inline-block;flex:0 0 auto}
+.dot.on{background:var(--hp);box-shadow:0 0 8px var(--hp)}
 
-  <style>
-    body {
-      background-color: #0f0f11;
-      color: #e0e0eb;
-      image-rendering: pixelated;
-    }
+/* room list */
+.rlist{display:flex;flex-direction:column;gap:8px}
+.ritem{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);
+border-radius:11px;padding:10px 12px;transition:.15s}
+.ritem-click{display:flex;align-items:center;gap:11px;flex:1;cursor:pointer;min-width:0}
+.ritem-click:hover{transform:translateX(3px)}
+.ritem .code{font-weight:800;letter-spacing:2px;color:var(--acc2);font-size:14px}
+.ritem .meta{font-size:12px;color:var(--mut);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--mut)}
+.ritem .tag.open{color:var(--hp);border-color:var(--hp)}
+.ritem .tag.full{color:var(--low);border-color:var(--low)}
+.ritem-actions{display:flex;gap:6px;flex:0 0 auto}
 
-    .pixel-border {
-      border: 3px solid #ffffff;
-      box-shadow: 4px 4px 0px #000000;
-    }
+/* ================= GAME SCREEN (FIT SCREEN) ================= */
+#game.screen.active{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  max-width:100vw;
+  padding:0;
+  overflow:hidden;
+}
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+background:rgba(13,15,20,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:8px 14px;flex:0 0 auto}
+.room-pill{background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:4px 12px;
+font-size:13px;letter-spacing:2px;font-weight:700;color:var(--acc2);cursor:pointer}
+#sync-badge{font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg3);color:var(--mut)}
+#sync-badge[data-state=live],#sync-badge[data-state=ok],#sync-badge[data-state=synced]{color:var(--hp)}
+#sync-badge[data-state=saving],#sync-badge[data-state=reconnecting]{color:var(--mid)}
+#sync-badge[data-state=error]{color:var(--low)}
+.turn-chip{margin-left:auto;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;
+background:var(--bg3);border:1px solid var(--line)}
+.turn-chip.mine{background:rgba(62,207,142,.15);border-color:var(--hp);color:var(--hp)}
 
-    .pixel-box {
-      border: 2px solid #4a4a58;
-      background: #1a1a1e;
-      box-shadow: 2px 2px 0px #000000;
-    }
+.layout{
+  display:grid;
+  grid-template-columns:300px 1fr;
+  gap:12px;
+  padding:12px;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+}
+@media(max-width:980px){
+  .layout{grid-template-columns:1fr;overflow-y:auto}
+  #game.screen.active{height:auto;min-height:100vh;overflow:visible}
+}
 
-    .pixel-btn {
-      border: 2px solid #ffffff;
-      box-shadow: 2px 2px 0px #000000;
-      transition: all 0.1s ease;
-      position: relative;
-    }
+.side{display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding-right:2px}
+@media(max-width:980px){.side{flex-direction:row;overflow-x:auto;padding-bottom:4px}.side>*{min-width:270px}}
+.pcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:11px;transition:.2s}
+.pcard.active-turn{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.pcard.down{opacity:.5;filter:grayscale(.7)}
+.pcard.empty{opacity:.55;border-style:dashed}
+.pname{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px}
+.pname .lv{font-size:11px;background:var(--bg3);border-radius:6px;padding:1px 6px;color:var(--acc2)}
+.pname .you{font-size:10px;background:var(--acc);color:#1a1405;border-radius:5px;padding:1px 5px}
+.pclass{font-size:12px;color:var(--mut);margin-bottom:6px}
+.hp-wrap{height:14px;background:#2a1216;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.hp-bar{height:100%;width:100%;background:var(--hp);border-radius:999px;
+transition:width .55s cubic-bezier(.22,1,.36,1),background-color .35s ease;will-change:width}
+.hp-bar.hp-mid{background:var(--mid)}
+.hp-bar.hp-low{background:var(--low);animation:hpPulse 1s ease-in-out infinite}
+@keyframes hpPulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hp-txt{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:3px}
+.hp-txt b{color:var(--txt);font-size:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}
+.stat{background:var(--bg3);border-radius:999px;padding:4px 3px;text-align:center}
+.stat span{display:block;font-size:9px;color:var(--mut)}.stat b{font-size:13px}
+.bag-h{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);
+margin:8px 0 4px;border-top:1px solid var(--line);padding-top:6px}
+.bag{list-style:none;margin:0;padding:0;max-height:110px;overflow-y:auto}
+.bag li{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:5px 8px;
+margin-bottom:4px;font-size:12px;animation:itemIn .3s ease-out}
+@keyframes itemIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.bag li.leaving{opacity:0;transform:translateX(14px);transition:.25s}
+.bag-empty{font-size:11px;color:var(--mut);font-style:italic;padding:2px}
 
-    .pixel-btn:active:not(:disabled) {
-      transform: translate(2px, 2px);
-      box-shadow: 0px 0px 0px #000000;
-    }
+.quests{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.quests li{font-size:12px;margin-bottom:4px}
 
-    .pixel-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      border-color: #555566 !important;
-      box-shadow: none !important;
-    }
+/* MAIN COLUMN & CHAT FIT */
+.main{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  height:100%;
+}
+#story{
+  flex:1;
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  overflow-y:auto;
+  min-height:0;
+  scroll-behavior:smooth;
+}
+.msg{margin-bottom:12px;animation:fadeUp .25s ease-out}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.msg .who{font-size:11px;font-weight:700;letter-spacing:.5px;margin-bottom:3px;color:var(--mut)}
+.msg.gm .who{color:var(--acc2)}.msg.gm .body{white-space:pre-wrap}
+.msg.p1 .who{color:var(--blue)}.msg.p2 .who{color:var(--pink)}
+.msg.ask-gm .who{color:var(--cyan)}.msg.ask-gm .body{border-left-color:var(--cyan);background:#10222e}
+.msg.p1 .body,.msg.p2 .body,.msg.ask-gm .body{background:var(--bg3);border-left:3px solid var(--blue);padding:7px 10px;border-radius:0 8px 8px 0;white-space:pre-wrap}
+.msg.p2 .body{border-left-color:var(--pink)}
+.msg.sys{font-size:12px;color:var(--mut);font-style:italic;border-left:2px solid var(--line);padding-left:8px;margin-bottom:8px}
+.msg.notif{font-size:12px;background:rgba(201,162,39,.09);border:1px solid rgba(201,162,39,.3);
+color:var(--acc2);border-radius:8px;padding:6px 10px}
+.typing{display:inline-flex;gap:4px}
+.typing i{width:5px;height:5px;background:var(--acc2);border-radius:50%;animation:bl 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes bl{0%,80%,100%{opacity:.25}40%{opacity:1}}
 
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #1a1a1e;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #4a4a58;
-      border: 1px solid #ffffff;
-    }
+/* Dice Box */
+#dice-box{text-align:center;padding:12px;background:rgba(91,141,239,.1);border:1px dashed var(--blue);
+border-radius:10px;margin-top:8px;flex:0 0 auto}
+#dice-num{font-size:42px;font-weight:800;color:var(--acc2);line-height:1}
+.rolling{animation:spin .55s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 
-    .scanlines {
-      background: linear-gradient(
-        rgba(18, 16, 16, 0) 50%, 
-        rgba(0, 0, 0, 0.25) 50%
-      );
-      background-size: 100% 4px;
-      pointer-events: none;
-    }
+/* Input Bar */
+.inputbar{margin-top:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;flex:0 0 auto}
+.tab-row{display:flex;gap:6px;margin-bottom:8px}
+.tab-btn{background:var(--bg3);border:1px solid var(--line);color:var(--mut);padding:5px 10px;font-size:11px;border-radius:6px;cursor:pointer}
+.tab-btn.active{background:var(--acc);color:#100d02;font-weight:700;border-color:var(--acc)}
+.whoami{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);margin-bottom:6px;flex-wrap:wrap}
+.inputbar textarea{min-height:50px;height:56px;margin-bottom:6px}
 
-    .role-choice-pill {
-      font-family: 'Sarabun', sans-serif;
-      font-size: 14px;
-      padding: 6px 10px;
-      background: #111116;
-      border: 2px solid #4a4a58;
-      color: #d1d5db;
-      text-align: left;
-      cursor: pointer;
-      box-shadow: 2px 2px 0px #000000;
-      transition: all 0.1s;
-    }
-    .role-choice-pill:hover {
-      border-color: #ffffff;
-      color: #ffffff;
-      background: #24242c;
-    }
-    .role-choice-pill.active {
-      border-color: #eab308;
-      background: #2d2610;
-      color: #fef08a;
-      box-shadow: 2px 2px 0px #eab308;
-    }
-  </style>
+#toasts{position:fixed;top:55px;right:14px;z-index:99;display:flex;flex-direction:column;gap:6px;max-width:320px}
+.toast{background:var(--bg3);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:8px;
+padding:8px 12px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:tIn .25s ease-out}
+.toast.lose{border-left-color:var(--low)}.toast.gain{border-left-color:var(--hp)}
+@keyframes tIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(8,9,13,.88);backdrop-filter:blur(5px);
+display:flex;align-items:center;justify-content:center;padding:16px}
+.obox{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:440px;width:100%}
+.slot{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);
+border-radius:10px;padding:9px 12px;margin-bottom:8px}
+.slot .nm{font-weight:700;font-size:13px}
+.slot .cl{font-size:11px;color:var(--mut)}
+.bigcode{text-align:center;font-size:28px;font-weight:800;letter-spacing:8px;color:var(--acc2);
+background:var(--bg3);border:1px dashed var(--acc);border-radius:10px;padding:10px;cursor:pointer;margin:8px 0}
+</style>
 </head>
-<body class="h-full flex flex-col font-sans overflow-x-hidden select-none bg-pix-black text-pix-light relative">
+<body>
+<div id="toasts"></div>
+
+<!-- ================= HOME ================= -->
+<section id="home" class="screen active">
+  <h1>⚔️ PLAPAO The GM</h1>
+  <div class="sub">Text RPG ออนไลน์ 2 ผู้เล่น — รองรับจัดการห้องและหน้าจอแบบ Fit Screen</div>
+
+  <div class="card">
+    <h2>ห้องที่เปิดอยู่</h2>
+    <div id="room-list" class="rlist"><div class="bag-empty">กำลังโหลด…</div></div>
+    <button class="ghost sm" style="margin-top:10px" onclick="loadRoomList()">↻ รีเฟรช</button>
+  </div>
+
+  <div class="card">
+    <h2>เข้าร่วมด้วยรหัส</h2>
+    <div class="row">
+      <input id="in-room" maxlength="6" placeholder="A1B2C3" style="text-transform:uppercase;letter-spacing:5px;text-align:center">
+      <button style="flex:0 0 auto" onclick="joinByCode()">เข้าร่วม</button>
+    </div>
+    <button class="blue" style="width:100%;margin-top:11px" onclick="newRoom()">+ สร้างห้องใหม่</button>
+  </div>
+
+  <div class="card">
+    <h2>ตั้งค่าระบบ</h2>
+    <label>Gemini API Key</label>
+    <input id="cfg-gemini" type="password" placeholder="AIzaSy...">
+    <label>Gemini Model</label>
+    <input id="cfg-model" placeholder="gemini-2.0-flash">
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;color:var(--mut);font-size:13px">Supabase (แก้เมื่อเปลี่ยน DB)</summary>
+      <label>Supabase URL</label><input id="cfg-surl">
+      <label>Supabase Anon Key</label><input id="cfg-skey" type="password">
+    </details>
+    <button style="margin-top:14px" onclick="saveConfig()">บันทึกการตั้งค่า</button>
+  </div>
+</section>
+
+<!-- ================= SETUP (host) ================= -->
+<section id="setup" class="screen">
+  <h1>สร้างโลกใหม่</h1>
+  <div class="sub">รหัสห้อง: <b id="setup-room"></b></div>
+  <div class="card">
+    <label>แนวเรื่อง / ธีมห้อง</label>
+    <select id="in-genre" onchange="checkCustomGenre()">
+      <option>แฟนตาซีดาบและเวทมนตร์</option><option>ไซเบอร์พังก์</option>
+      <option>สยองขวัญคฤหาสน์ร้าง</option><option>โจรสลัดผจญภัย</option>
+      <option>อวกาศไซไฟ</option><option>ยุทธจักรกำลังภายใน</option>
+      <option>เอาชีวิตรอดซอมบี้</option><option>สืบสวนฆาตกรรม</option>
+      <option value="custom">✍️ กำหนดเอง (Custom)...</option>
+    </select>
+    <div id="custom-genre-box" class="hidden" style="margin-top:8px">
+      <label>พิมพ์แนวเรื่องของคุณ</label>
+      <input id="in-custom-genre" placeholder="เช่น ดันเจี้ยนใต้พิภพ, โลกโจรสลัดอวกาศ...">
+    </div>
+    <label style="margin-top:10px">รายละเอียดโลก / ฉากเปิด (ไม่ใส่ก็ได้)</label>
+    <textarea id="in-setting" placeholder="เช่น พวกเราเริ่มที่เมืองท่าโบราณ กำลังมองหาเบาะแส..."></textarea>
+  </div>
+  <div class="card">
+    <h2>ตัวละครของคุณ (ผู้เล่น 1)</h2>
+    <label>ชื่อตัวละคร</label><input id="host-name" placeholder="เช่น อาเรน">
+    <label>คลาส / อาชีพ</label><input id="host-class" value="นักดาบ">
+  </div>
+  <div class="row">
+    <button id="btn-create" onclick="createRoom()">สร้างห้องและรอเพื่อน</button>
+    <button class="ghost" onclick="go('home')">ย้อนกลับ</button>
+  </div>
+</section>
+
+<!-- ================= JOIN / CLAIM SETUP ================= -->
+<section id="joinsetup" class="screen">
+  <h1>เลือกวิธีเข้าร่วมการผจญภัย</h1>
+  <div class="sub" id="join-info"></div>
   
-  <div class="fixed inset-0 scanlines z-30 pointer-events-none opacity-25"></div>
-
-  <div id="app" class="flex flex-col h-full w-full relative z-10">
-
-    <!-- TOP NAVIGATION BAR -->
-    <header class="bg-pix-dark border-b-2 sm:border-b-4 border-pix-white px-3 sm:px-4 py-2.5 flex justify-between items-center z-20 shrink-0 gap-2 relative">
-      <div class="flex items-center space-x-2 cursor-pointer" onclick="showScreen('home')">
-        <div class="w-8 h-8 bg-pix-white text-pix-black font-pixel text-xs flex items-center justify-center font-bold">PL</div>
-        <h1 class="font-pixel text-sm sm:text-base tracking-wider text-white">PLAPAO The GM</h1>
-      </div>
-
-      <!-- Desktop Nav Buttons -->
-      <div class="hidden md:flex items-center space-x-2">
-        <button onclick="showScreen('home')" class="pixel-btn bg-yellow-600 hover:bg-yellow-500 text-white px-2.5 py-1.5 text-sm font-sans font-bold">
-          🏠 หน้าหลัก
-        </button>
-        <button onclick="toggleApiKeyModal()" class="pixel-btn bg-pix-panel hover:bg-gray-700 text-white px-2.5 py-1.5 text-sm font-sans font-bold">
-          🔑 API & DB
-        </button>
-        <button onclick="saveGameToSupabase()" class="pixel-btn bg-green-700 hover:bg-green-600 text-white px-2.5 py-1.5 text-sm font-sans font-bold">
-          ☁️ ซิงก์คลาวด์
-        </button>
-        <button onclick="openLoadCloudModal()" class="pixel-btn bg-pix-panel hover:bg-gray-700 text-white px-2.5 py-1.5 text-sm font-sans font-bold">
-          📂 จัดการห้อง
-        </button>
-        <button onclick="openCreateGameModal()" class="pixel-btn bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 text-sm font-sans font-bold">
-          🆕 เริ่มใหม่
-        </button>
-      </div>
-
-      <!-- Mobile Menu Trigger -->
-      <div class="md:hidden relative">
-        <button onclick="toggleMobileNavMenu(event)" class="pixel-btn bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 text-sm font-sans font-bold flex items-center gap-1.5">
-          <span>☰</span> <span>เมนู</span>
-        </button>
-
-        <div id="mobile-nav-popup" class="hidden absolute right-0 top-11 w-48 bg-pix-dark pixel-border p-2 z-50 flex flex-col gap-1.5 shadow-2xl">
-          <button onclick="menuAction(() => showScreen('home'))" class="pixel-btn bg-yellow-600 text-white text-left px-3 py-2 text-sm font-sans font-bold">
-            🏠 หน้าหลัก
-          </button>
-          <button onclick="menuAction(() => toggleApiKeyModal())" class="pixel-btn bg-pix-panel text-white text-left px-3 py-2 text-sm font-sans font-bold">
-            🔑 API & Supabase
-          </button>
-          <button onclick="menuAction(() => saveGameToSupabase())" class="pixel-btn bg-green-700 text-white text-left px-3 py-2 text-sm font-sans font-bold">
-            ☁️ ซิงก์คลาวด์
-          </button>
-          <button onclick="menuAction(() => openLoadCloudModal())" class="pixel-btn bg-pix-panel text-white text-left px-3 py-2 text-sm font-sans font-bold">
-            📂 จัดการห้องเกม
-          </button>
-          <button onclick="menuAction(() => openCreateGameModal())" class="pixel-btn bg-blue-600 text-white text-left px-3 py-2 text-sm font-sans font-bold">
-            🆕 เริ่มเกมใหม่
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- VIEW: HOME SCREEN -->
-    <main id="screen-home" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col justify-between">
-      <div class="text-center my-4 space-y-2">
-        <div class="inline-block px-3 py-1 bg-pix-panel border border-pix-white text-xs font-pixel text-yellow-400">RETRO PIXEL TEXT RPG</div>
-        <h2 class="font-pixel text-xl sm:text-3xl text-white tracking-widest uppercase">เลือกธีมการผจญภัย</h2>
-        <p class="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto font-sans leading-relaxed">
-          ระบบ PLAPAO The GM เริ่มต้นตัวเปล่าไม่มีไอเทม GM จะเป็นผู้มอบไอเทมเมื่อผู้เล่นออกสำรวจและค้นพบในเนื้อเรื่อง
-        </p>
-      </div>
-
-      <!-- Genre Cards Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-2">
-        <div onclick="selectGenreAndStart('Fantasy')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">⚔️</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-yellow-400 mb-1">FANTASY</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">ดาบ เวทมนตร์ ดันเจี้ยน และมังกรโบราณ</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Horror')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">👻</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-red-400 mb-1">HORROR</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">บ้านผีสิง เรื่องลี้ลับ และการเอาชีวิตรอด</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Sci-Fi')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">🚀</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-cyan-400 mb-1">SCI-FI</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">อวกาศ ไซเบอร์พังก์ ปัญญาประดิษฐ์ และอนาคต</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Mystery')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">🔍</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-purple-400 mb-1">MYSTERY</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">สืบคดีปริศนา สืบหาความจริงในเงามืด</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Survival')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">🏕</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-green-400 mb-1">SURVIVAL</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">เกาะร้าง ไวรัสซอมบี้ และทรัพยากรอันจำกัด</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Adventure')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">🤠</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-orange-400 mb-1">ADVENTURE</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">ล่าขุมทรัพย์ สำรวจโบราณสถานลี้ลับ</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Comedy')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48">
-          <div>
-            <div class="text-3xl mb-1">🤡</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-pink-400 mb-1">COMEDY</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">ความป่วน ความฮา และภารกิจสุดเพี้ยน</p>
-          </div>
-          <span class="text-xs font-pixel text-blue-400 self-end">เลือก &rarr;</span>
-        </div>
-
-        <div onclick="selectGenreAndStart('Custom')" class="pixel-box p-3.5 sm:p-4 bg-pix-panel hover:border-pix-white cursor-pointer transition flex flex-col justify-between h-40 sm:h-48 border-yellow-500">
-          <div>
-            <div class="text-3xl mb-1">✏️</div>
-            <h3 class="font-pixel text-xs sm:text-sm text-yellow-300 mb-1">CUSTOM</h3>
-            <p class="text-sm sm:text-base text-gray-300 leading-snug">แต่งเรื่องเอง กำหนดพล็อตและโลกตามใจชอบ</p>
-          </div>
-          <span class="text-xs font-pixel text-yellow-400 self-end">แต่งเอง &rarr;</span>
-        </div>
-      </div>
-
-      <div class="flex justify-center my-4">
-        <button onclick="openCreateGameModal()" class="pixel-btn bg-green-600 hover:bg-green-500 text-white font-sans font-bold px-6 py-3 text-base flex items-center gap-2">
-          ➕ ตั้งค่าห้องเล่น (กำหนดตัวละคร 2 คน)
-        </button>
-      </div>
-    </main>
-
-    <!-- VIEW: GAME SCREEN -->
-    <main id="screen-game" class="flex-1 flex flex-col md:flex-row overflow-hidden relative hidden">
-
-      <!-- MOBILE TOP ACTION BAR -->
-      <div class="md:hidden bg-pix-dark border-b border-pix-border px-3 py-2 flex justify-between items-center text-sm font-sans shrink-0">
-        <button onclick="toggleMobileDrawer('left')" class="pixel-btn px-2.5 py-1 bg-pix-panel text-blue-400 border border-blue-500">
-          👤 ตัวละคร
-        </button>
-        <span id="mobile-turn-indicator" class="text-yellow-400 font-bold text-sm">เทิร์น: P1</span>
-        <button onclick="toggleMobileDrawer('right')" class="pixel-btn px-2.5 py-1 bg-pix-panel text-purple-400 border border-purple-500">
-          🎒 ช่องเก็บของ
-        </button>
-      </div>
-
-      <!-- LEFT PANEL: Players Status -->
-      <aside id="drawer-left" class="fixed md:static inset-y-0 left-0 z-50 w-72 md:w-80 bg-pix-dark border-r-2 md:border-r-4 border-pix-white p-3 flex flex-col gap-3 overflow-y-auto transition-transform duration-200 -translate-x-full md:translate-x-0 shrink-0 shadow-2xl md:shadow-none">
-        <div class="flex justify-between items-center border-b border-pix-border pb-2 md:hidden">
-          <span class="font-sans font-bold text-base text-white">ข้อมูลตัวละคร</span>
-          <button onclick="closeAllDrawers()" class="pixel-btn px-2 py-0.5 bg-red-600 text-white font-sans text-xs">ปิด ✕</button>
-        </div>
-
-        <!-- Room Tag Badge -->
-        <div class="pixel-box p-2 bg-pix-black flex justify-between items-center text-xs">
-          <span class="text-gray-400 font-pixel">ROOM CODE:</span>
-          <span id="room-code-display" class="font-pixel text-yellow-400">ROOM-XXXX</span>
-        </div>
-
-        <!-- PLAYER 1 CARD -->
-        <div id="p1-card" class="pixel-box p-3 bg-pix-panel border-l-4 border-l-blue-500">
-          <div class="flex justify-between items-start mb-1.5">
-            <div>
-              <span class="text-xs font-pixel text-blue-400">PLAYER 1</span>
-              <h4 id="p1-name-display" class="font-sans font-bold text-base text-white truncate max-w-[160px]">Player 1</h4>
-            </div>
-            <span id="p1-level" class="text-xs font-pixel bg-blue-950 text-blue-300 border border-blue-500 px-1.5 py-0.5">Lv.1</span>
-          </div>
-          <div class="space-y-1 mb-2">
-            <div class="flex justify-between text-xs font-pixel">
-              <span>HP</span>
-              <span id="p1-hp-text">20/20</span>
-            </div>
-            <div class="w-full bg-gray-800 h-2.5 border border-gray-600">
-              <div id="p1-hp-bar" class="bg-green-500 h-full transition-all" style="width: 100%;"></div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-1 text-base font-vt text-gray-200 bg-pix-dark p-2 border border-gray-700">
-            <div>ATK: <span id="p1-atk" class="font-bold text-white">14</span></div>
-            <div>DEF: <span id="p1-def" class="font-bold text-white">12</span></div>
-            <div>GOLD: <span id="p1-gold" class="text-yellow-400 font-bold">50</span></div>
-            <div class="truncate font-sans text-sm text-blue-300 font-semibold" id="p1-class-display">นักรบ</div>
-          </div>
-        </div>
-
-        <!-- PLAYER 2 CARD -->
-        <div id="p2-card" class="pixel-box p-3 bg-pix-panel border-l-4 border-l-pink-500">
-          <div class="flex justify-between items-start mb-1.5">
-            <div>
-              <span class="text-xs font-pixel text-pink-400">PLAYER 2</span>
-              <h4 id="p2-name-display" class="font-sans font-bold text-base text-white truncate max-w-[160px]">Player 2</h4>
-            </div>
-            <span id="p2-level" class="text-xs font-pixel bg-pink-950 text-pink-300 border border-pink-500 px-1.5 py-0.5">Lv.1</span>
-          </div>
-          <div class="space-y-1 mb-2">
-            <div class="flex justify-between text-xs font-pixel">
-              <span>HP</span>
-              <span id="p2-hp-text">16/16</span>
-            </div>
-            <div class="w-full bg-gray-800 h-2.5 border border-gray-600">
-              <div id="p2-hp-bar" class="bg-green-500 h-full transition-all" style="width: 100%;"></div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-1 text-base font-vt text-gray-200 bg-pix-dark p-2 border border-gray-700">
-            <div>ATK: <span id="p2-atk" class="font-bold text-white">10</span></div>
-            <div>DEF: <span id="p2-def" class="font-bold text-white">8</span></div>
-            <div>GOLD: <span id="p2-gold" class="text-yellow-400 font-bold">50</span></div>
-            <div class="truncate font-sans text-sm text-pink-300 font-semibold" id="p2-class-display">จอมเวท</div>
-          </div>
-        </div>
-
-        <!-- ACTIVE TURN INDICATOR BOX -->
-        <div class="pixel-box p-3 bg-pix-dark text-center border-yellow-500 mt-auto">
-          <div class="text-xs font-sans text-gray-400 mb-0.5">ถึงตาของผู้เล่น</div>
-          <div id="turn-display-panel" class="font-sans font-bold text-base text-yellow-400 animate-pulse">
-            ⚔️ ตาของ Player 1
-          </div>
-        </div>
-      </aside>
-
-      <!-- CENTER PANEL: Story Log & Actions -->
-      <section class="flex-1 flex flex-col bg-pix-black h-full overflow-hidden relative">
-        
-        <!-- Game Sub Header -->
-        <div class="bg-pix-panel border-b-2 border-pix-border px-3 py-2 flex justify-between items-center text-sm font-sans shrink-0">
-          <div class="flex items-center gap-2">
-            <span class="text-gray-400">ธีมเรื่องราว:</span>
-            <span id="current-genre-tag" class="text-yellow-400 font-bold uppercase truncate max-w-[180px] sm:max-w-none">FANTASY</span>
-          </div>
-          <div id="dice-result-badge" class="hidden bg-purple-900 border border-purple-400 text-purple-200 px-2.5 py-0.5 rounded text-xs font-pixel">
-            🎲 ROLL: 15
-          </div>
-        </div>
-
-        <!-- Chat / Story Log Scroll Area -->
-        <div id="story-log" class="flex-1 p-3 sm:p-5 overflow-y-auto space-y-4 font-sans text-base md:text-lg leading-relaxed">
-        </div>
-
-        <!-- Input & Action Controls Area -->
-        <div class="bg-pix-dark border-t-2 sm:border-t-4 border-pix-white p-3 space-y-2 shrink-0">
-          
-          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-pix-border pb-2">
-            <div class="flex items-center space-x-2">
-              <span class="text-sm font-sans font-bold text-gray-300">กระทำโดย:</span>
-              <button id="actor-p1-btn" onclick="setActingPlayer(1)" class="px-2.5 py-1 text-sm font-sans font-bold bg-blue-600 text-white border border-white">
-                P1
-              </button>
-              <button id="actor-p2-btn" onclick="setActingPlayer(2)" class="px-2.5 py-1 text-sm font-sans font-bold bg-pix-panel text-gray-400 border border-gray-600">
-                P2
-              </button>
-            </div>
-
-            <!-- ROLL BUTTON -->
-            <div class="flex items-center gap-2">
-              <span id="roll-status-tip" class="text-sm text-gray-400 font-sans hidden sm:inline">ส่ง Action ก่อนถึงจะรู้ว่าต้องทอยไหม</span>
-              <button id="dice-roll-btn" onclick="executeDiceRoll()" disabled class="pixel-btn bg-purple-950 text-gray-500 text-xs sm:text-sm font-sans font-bold px-3 py-1.5 flex items-center gap-1.5">
-                🔒 รอดูผลจาก GM
-              </button>
-            </div>
-          </div>
-
-          <!-- Action Input Form -->
-          <form onsubmit="handlePlayerAction(event)" class="flex gap-2">
-            <input 
-              type="text" 
-              id="action-input" 
-              placeholder="พิมพ์ Action การกระทำของคุณ (เช่น เดินสำรวจ, โจมตี, แอบย่อง)..." 
-              class="flex-1 bg-pix-black border-2 border-pix-border focus:border-pix-white text-white px-3 py-2 text-base outline-none font-sans"
-              required
-              autocomplete="off"
-            >
-            <button type="submit" id="send-btn" class="pixel-btn bg-yellow-600 hover:bg-yellow-500 text-white font-sans font-bold text-base px-4 py-2 shrink-0">
-              ส่ง Action &rarr;
-            </button>
-          </form>
-
-        </div>
-      </section>
-
-      <!-- RIGHT PANEL: Items / Quests / Long-term Memory -->
-      <aside id="drawer-right" class="fixed md:static inset-y-0 right-0 z-50 w-72 md:w-80 bg-pix-dark border-l-2 md:border-l-4 border-pix-white p-3 flex flex-col overflow-y-auto transition-transform duration-200 translate-x-full md:translate-x-0 shrink-0 shadow-2xl md:shadow-none">
-        <div class="flex justify-between items-center border-b border-pix-border pb-2 md:hidden mb-2">
-          <span class="font-sans font-bold text-base text-white">สัมภาระ & ภารกิจ</span>
-          <button onclick="closeAllDrawers()" class="pixel-btn px-2 py-0.5 bg-red-600 text-white font-sans text-xs">ปิด ✕</button>
-        </div>
-
-        <div class="grid grid-cols-4 gap-1 border-b-2 border-pix-white pb-2 mb-3 text-xs sm:text-sm font-sans font-bold">
-          <button onclick="switchRightTab('items')" id="tab-btn-items" class="py-1 bg-pix-white text-pix-black">ไอเทม</button>
-          <button onclick="switchRightTab('quests')" id="tab-btn-quests" class="py-1 bg-pix-panel text-gray-400">ภารกิจ</button>
-          <button onclick="switchRightTab('memory')" id="tab-btn-memory" class="py-1 bg-pix-panel text-gray-400">ความจำ</button>
-          <button onclick="switchRightTab('log')" id="tab-btn-log" class="py-1 bg-pix-panel text-gray-400">บันทึก</button>
-        </div>
-
-        <!-- ITEMS INVENTORY (เริ่มต้นกระเป๋าว่าง GM คอย Add ให้) -->
-        <div id="tab-content-items" class="space-y-3">
-          <h4 class="font-sans font-bold text-base text-yellow-400">กระเป๋าสัมภาระ (INVENTORY)</h4>
-          <div class="space-y-3">
-            <div>
-              <div class="text-sm font-sans font-bold text-blue-400 mb-1">Player 1:</div>
-              <ul id="p1-items-list" class="text-base md:text-lg space-y-1.5 font-sans text-gray-100 bg-pix-black p-2.5 border border-gray-600 leading-normal min-h-[50px]">
-                <li class="text-gray-500 text-sm italic">(ยังไม่มีไอเทม)</li>
-              </ul>
-            </div>
-
-            <div>
-              <div class="text-sm font-sans font-bold text-pink-400 mb-1">Player 2:</div>
-              <ul id="p2-items-list" class="text-base md:text-lg space-y-1.5 font-sans text-gray-100 bg-pix-black p-2.5 border border-gray-600 leading-normal min-h-[50px]">
-                <li class="text-gray-500 text-sm italic">(ยังไม่มีไอเทม)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div id="tab-content-quests" class="space-y-2 hidden">
-          <h4 class="font-sans font-bold text-base text-yellow-400">ภารกิจที่กำลังทำ</h4>
-          <div id="quests-list" class="text-base space-y-2 font-sans text-gray-200">
-            <div class="p-2.5 bg-pix-black border border-gray-700">
-              <span class="text-yellow-400 font-sans font-bold text-xs">ภารกิจหลัก</span>
-              <p class="mt-1 text-sm sm:text-base">สำรวจและเอาชีวิตรอดในเรื่องราวที่เลือก</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- LONG-TERM MEMORY TAB -->
-        <div id="tab-content-memory" class="space-y-2 hidden">
-          <h4 class="font-sans font-bold text-base text-yellow-400">ความจำระยะยาว (LONG-TERM)</h4>
-          <div class="p-2.5 bg-pix-black border border-gray-700 space-y-2">
-            <span class="text-xs font-pixel text-green-400">WORLD SUMMARY (สรุปอัตโนมัติ):</span>
-            <p id="world-summary-display" class="text-sm text-gray-300 leading-relaxed font-sans">
-              เพิ่งเริ่มต้นการเดินทางผจญภัย
-            </p>
-          </div>
-        </div>
-
-        <div id="tab-content-log" class="space-y-2 hidden">
-          <h4 class="font-sans font-bold text-base text-yellow-400">บันทึกเหตุการณ์ระบบ</h4>
-          <div id="system-summary-log" class="text-base font-vt text-gray-300 space-y-1 bg-pix-black p-2.5 border border-gray-700 h-64 overflow-y-auto">
-            <div>[System] PLAPAO The GM Initialized.</div>
-          </div>
-        </div>
-
-      </aside>
-
-    </main>
+  <div id="claim-box" class="card hidden">
+    <h2>สวมบทบาทตัวละครเดิม (ข้ามเครื่อง)</h2>
+    <div class="sub">ตรวจพบตัวละครในห้องนี้ สามารถกดเลือกตัวเดิมเพื่อเล่นต่อได้ทันที</div>
+    <div id="claim-slots"></div>
   </div>
 
-  <!-- MODAL: CREATE GAME -->
-  <div id="modal-create-game" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3 hidden">
-    <div class="pixel-border bg-pix-panel p-4 sm:p-6 max-w-2xl w-full max-h-[92vh] overflow-y-auto space-y-4">
-      <div class="flex justify-between items-center border-b-2 border-pix-white pb-2">
-        <h3 class="font-sans font-bold text-lg text-yellow-400">ตั้งค่าเกมใหม่ (2 ผู้เล่น)</h3>
-        <button onclick="closeModal('modal-create-game')" class="text-white hover:text-red-400 font-pixel text-sm p-1">✕</button>
+  <div id="create-guest-box" class="card">
+    <h2>สร้างตัวละครใหม่ (ผู้เล่น 2)</h2>
+    <label>ชื่อตัวละคร</label><input id="guest-name" placeholder="เช่น ลีรา">
+    <label>คลาส / อาชีพ</label><input id="guest-class" value="จอมเวท">
+    <button id="btn-claim" style="margin-top:12px" onclick="confirmJoinNew()">เข้าร่วมเป็นตัวใหม่</button>
+  </div>
+  <div class="row">
+    <button class="ghost" onclick="go('home')">ย้อนกลับ</button>
+  </div>
+</section>
+
+<!-- ================= EDIT ROOM MODAL ================= -->
+<div class="overlay hidden" id="edit-room-modal">
+  <div class="obox">
+    <h2 style="margin-top:0">✏️ แก้ไขข้อมูลห้องและตัวละคร</h2>
+    <div class="sub" id="edit-room-sub">รหัสห้อง: </div>
+    
+    <label>ชื่อแนวเรื่อง / ธีมห้อง</label>
+    <input id="edit-genre">
+
+    <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px">
+      <h3 style="font-size:14px;color:var(--acc2);margin:6px 0">ผู้เล่น 1 (P1)</h3>
+      <div class="row">
+        <div><label>ชื่อตัวละคร</label><input id="edit-p1-name"></div>
+        <div><label>คลาส/อาชีพ</label><input id="edit-p1-class"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
+      <h3 style="font-size:14px;color:var(--pink);margin:6px 0">ผู้เล่น 2 (P2)</h3>
+      <div class="row">
+        <div><label>ชื่อตัวละคร</label><input id="edit-p2-name" placeholder="(ยังไม่มีผู้เล่น)"></div>
+        <div><label>คลาส/อาชีพ</label><input id="edit-p2-class" placeholder="(ยังไม่มีผู้เล่น)"></div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <button onclick="saveRoomEdit()">บันทึกการแก้ไข</button>
+      <button class="ghost" onclick="closeEditModal()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= GAME ================= -->
+<section id="game" class="screen">
+  <div class="topbar">
+    <span class="room-pill" id="room-pill" onclick="copyRoom()" title="แตะเพื่อคัดลอก"></span>
+    <span id="sync-badge">—</span>
+    <button class="ghost sm" onclick="shareRoom()">🔗 แชร์</button>
+    <button class="ghost sm" onclick="shortRest()">🏕️ พักฟื้น</button>
+    <span class="turn-chip" id="turn-chip">—</span>
+    <button class="ghost sm" onclick="leaveRoom()">ออก</button>
+  </div>
+
+  <div class="layout">
+    <div class="side">
+      <div class="pcard" id="p1-card">
+        <div class="pname"><span class="dot" id="p1-dot"></span><span id="p1-name-txt">—</span>
+          <span class="lv">Lv.<b id="p1-lv">1</b></span><span class="you hidden" id="p1-you">คุณ</span></div>
+        <div class="pclass" id="p1-class-txt"></div>
+        <div id="p1-hp-panel">
+          <div class="hp-wrap"><div class="hp-bar" id="p1-hp-bar"></div></div>
+          <div class="hp-txt"><span>HP</span><span><b id="p1-hp">20</b> / <span id="p1-maxhp">20</span></span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>ATK</span><b id="p1-atk">5</b></div>
+          <div class="stat"><span>DEF</span><b id="p1-def">3</b></div>
+          <div class="stat"><span>GOLD</span><b id="p1-gold">0</b></div>
+        </div>
+        <div class="bag-h"><span>🎒 กระเป๋า</span><span id="p1-count">0</span></div>
+        <div class="bag-empty" id="p1-empty">ว่างเปล่า</div><ul class="bag" id="p1-bag"></ul>
       </div>
 
-      <div>
-        <label class="block font-sans font-bold text-sm text-gray-300 mb-2">เลือกธีมเรื่องราว:</label>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <button type="button" onclick="setModalGenre('Fantasy')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-blue-900 border-white text-white">Fantasy</button>
-          <button type="button" onclick="setModalGenre('Horror')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Horror</button>
-          <button type="button" onclick="setModalGenre('Sci-Fi')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Sci-Fi</button>
-          <button type="button" onclick="setModalGenre('Mystery')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Mystery</button>
-          <button type="button" onclick="setModalGenre('Survival')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Survival</button>
-          <button type="button" onclick="setModalGenre('Adventure')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Adventure</button>
-          <button type="button" onclick="setModalGenre('Comedy')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">Comedy</button>
-          <button type="button" onclick="setModalGenre('Custom')" class="modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300">✏️️ แต่งเรื่องเอง</button>
+      <div class="pcard" id="p2-card">
+        <div class="pname"><span class="dot" id="p2-dot"></span><span id="p2-name-txt">—</span>
+          <span class="lv">Lv.<b id="p2-lv">1</b></span><span class="you hidden" id="p2-you">คุณ</span></div>
+        <div class="pclass" id="p2-class-txt"></div>
+        <div id="p2-hp-panel">
+          <div class="hp-wrap"><div class="hp-bar" id="p2-hp-bar"></div></div>
+          <div class="hp-txt"><span>HP</span><span><b id="p2-hp">20</b> / <span id="p2-maxhp">20</span></span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>ATK</span><b id="p2-atk">5</b></div>
+          <div class="stat"><span>DEF</span><b id="p2-def">3</b></div>
+          <div class="stat"><span>GOLD</span><b id="p2-gold">0</b></div>
+        </div>
+        <div class="bag-h"><span>🎒 กระเป๋า</span><span id="p2-count">0</span></div>
+        <div class="bag-empty" id="p2-empty">ว่างเปล่า</div><ul class="bag" id="p2-bag"></ul>
+      </div>
+
+      <div class="quests">
+        <div style="font-size:11px;color:var(--mut);margin-bottom:5px">📜 ภารกิจ & เบาะแส</div>
+        <ul id="quest-list" style="margin:0;padding-left:16px"></ul>
+        <div id="quest-empty" class="bag-empty">ยังไม่มีภารกิจ</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div id="story"></div>
+
+      <!-- กล่องทอยลูกเต๋า D20 -->
+      <div id="dice-box" class="hidden">
+        <div style="font-size:12px;color:var(--mut);margin-bottom:3px" id="dice-label">🎲 ต้องทอยเต๋าตัดสินผล</div>
+        <div id="dice-num">🎲</div>
+        <div style="margin-top:6px">
+          <button class="blue sm" id="dice-btn" onclick="executeDiceRoll()">กดทอย D20 ตัดสินผล</button>
         </div>
       </div>
 
-      <div id="custom-story-container" class="hidden p-3 bg-pix-dark border-2 border-yellow-500 space-y-2">
-        <label class="block font-sans font-bold text-sm text-yellow-300">📖 พล็อตเรื่อง/สถานการณ์ที่อยากเล่น (กำหนดเอง):</label>
-        <textarea id="custom-story-prompt" rows="3" placeholder="เช่น ติดอยู่ในห้างสรรพสินค้าร้างตอนเที่ยงคืนที่มีหุ่นไล่กาเดินได้..." class="w-full bg-pix-black border border-gray-600 text-white p-2 text-sm outline-none focus:border-yellow-400"></textarea>
-      </div>
+      <div class="inputbar">
+        <div class="tab-row">
+          <button class="tab-btn active" id="tab-action" onclick="switchInputTab('action')">⚔️ Action (เล่นเทิร์น)</button>
+          <button class="tab-btn" id="tab-ask" onclick="switchInputTab('ask')">💬 คุยกับ GM (ถามนอกรอบ)</button>
+        </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-pix-border pt-3">
-        <div class="space-y-3 p-3 bg-pix-dark border-2 border-blue-500">
-          <span class="font-sans font-bold text-base text-blue-400">🛡️ ตั้งค่า PLAYER 1</span>
-          <div>
-            <label class="block text-sm font-sans text-gray-400 mb-1">ชื่อตัวละคร:</label>
-            <input type="text" id="setup-p1-name" value="อัศวินกล้า" class="w-full bg-pix-black border border-gray-600 text-white p-2 text-base outline-none focus:border-blue-400">
-          </div>
-          <div>
-            <label class="block text-sm font-sans text-gray-400 mb-1.5">เลือกอาชีพ / บทบาท (Role):</label>
-            <div id="p1-role-grid" class="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
-            <div class="mt-2">
-              <label class="block text-xs font-sans text-gray-400 mb-1">หรือระบุอาชีพเอง:</label>
-              <input type="text" id="setup-p1-class" class="w-full bg-pix-black border border-gray-700 text-yellow-300 p-1.5 text-sm outline-none focus:border-yellow-400">
-            </div>
+        <div class="whoami" id="whoami"></div>
+
+        <div id="panel-action">
+          <textarea id="in-action" placeholder="พิมพ์สิ่งที่ตัวละครของคุณจะทำ..."></textarea>
+          <div class="row">
+            <button id="btn-send" onclick="sendAction()">ส่ง Action</button>
+            <button class="ghost" style="flex:0 0 auto" onclick="forceSync()">↻ ซิงก์</button>
           </div>
         </div>
 
-        <div class="space-y-3 p-3 bg-pix-dark border-2 border-pink-500">
-          <span class="font-sans font-bold text-base text-pink-400">✨ ตั้งค่า PLAYER 2</span>
-          <div>
-            <label class="block text-sm font-sans text-gray-400 mb-1">ชื่อตัวละคร:</label>
-            <input type="text" id="setup-p2-name" value="จอมเวทพเนจร" class="w-full bg-pix-black border border-gray-600 text-white p-2 text-base outline-none focus:border-pink-400">
-          </div>
-          <div>
-            <label class="block text-sm font-sans text-gray-400 mb-1.5">เลือกอาชีพ / บทบาท (Role):</label>
-            <div id="p2-role-grid" class="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
-            <div class="mt-2">
-              <label class="block text-xs font-sans text-gray-400 mb-1">หรือระบุอาชีพเอง:</label>
-              <input type="text" id="setup-p2-class" class="w-full bg-pix-black border border-gray-700 text-yellow-300 p-1.5 text-sm outline-none focus:border-yellow-400">
-            </div>
+        <div id="panel-ask" class="hidden">
+          <textarea id="in-ask" placeholder="พิมพ์ถาม GM นอกรอบ เช่น รายละเอียดสิ่งรอบตัว, กฎ (ไม่นับเป็นเทิร์น)..."></textarea>
+          <div class="row">
+            <button class="cyan" id="btn-ask" onclick="sendAskGm()">ถาม GM</button>
+            <button class="ghost" style="flex:0 0 auto" onclick="switchInputTab('action')">ยกเลิก</button>
           </div>
         </div>
-      </div>
-
-      <div class="flex justify-end space-x-2 border-t border-pix-border pt-3">
-        <button onclick="closeModal('modal-create-game')" class="pixel-btn bg-gray-700 text-white font-sans font-bold text-base px-4 py-2">ยกเลิก</button>
-        <button onclick="confirmCreateGame()" class="pixel-btn bg-green-600 hover:bg-green-500 text-white font-sans font-bold text-base px-6 py-2">เริ่มผจญภัย &rarr;</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: API KEY & SUPABASE SETTINGS (จดจำใน LocalStorage) -->
-  <div id="modal-apikey" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3 hidden">
-    <div class="pixel-border bg-pix-panel p-5 max-w-md w-full space-y-3">
-      <div class="flex justify-between items-center border-b-2 border-pix-white pb-2">
-        <h3 class="font-sans font-bold text-base text-yellow-400">ตั้งค่า GEMINI API & SUPABASE</h3>
-        <button onclick="closeModal('modal-apikey')" class="text-white hover:text-red-400 font-pixel text-sm p-1">✕</button>
+  <!-- LOBBY OVERLAY -->
+  <div class="overlay hidden" id="lobby">
+    <div class="obox">
+      <h2 style="margin-top:0">🏕️ ล็อบบี้ — รอผู้เล่น</h2>
+      <div class="sub" style="margin:0">ส่งรหัสนี้ให้เพื่อน หรือกดแชร์ลิงก์เพื่อเข้าเล่นร่วมกัน</div>
+      <div class="bigcode" id="lobby-code" onclick="copyRoom()"></div>
+      <div id="lobby-slots"></div>
+      <div class="row" style="margin-top:14px">
+        <button id="lobby-start" onclick="startAdventure()">เริ่มการผจญภัย</button>
+        <button class="ghost" style="flex:0 0 auto" onclick="shareRoom()">🔗 แชร์</button>
       </div>
-      <p class="text-xs text-gray-300">
-        ข้อมูลคีย์จะถูกบันทึกลงในหน่วยความจำเครื่อง (LocalStorage) โดยอัตโนมัติ ทำให้ไม่ต้องพิมพ์ซ้ำเมื่อกลับมาเล่นใหม่
-      </p>
-
-      <div>
-        <label class="block text-xs font-sans text-gray-400 mb-1">GEMINI API KEY:</label>
-        <input type="password" id="input-api-key" placeholder="AIzaSy..." class="w-full bg-pix-black border border-white text-white p-2 text-sm outline-none">
-      </div>
-
-      <div class="border-t border-pix-border pt-2 space-y-2">
-        <label class="block text-xs font-sans text-green-400 font-bold">SUPABASE CONFIGURATION:</label>
-        <div>
-          <label class="block text-[11px] font-sans text-gray-400 mb-0.5">Project URL:</label>
-          <input type="text" id="input-supabase-url" class="w-full bg-pix-black border border-gray-600 text-gray-300 p-1.5 text-xs outline-none">
-        </div>
-        <div>
-          <label class="block text-[11px] font-sans text-gray-400 mb-0.5">Anon / Public Key:</label>
-          <input type="password" id="input-supabase-key" class="w-full bg-pix-black border border-gray-600 text-white p-1.5 text-xs outline-none">
-        </div>
-      </div>
-
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="saveApiAndDbKeys()" class="pixel-btn bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-sm px-4 py-1.5">บันทึกลงเครื่อง</button>
-      </div>
+      <div class="sub" id="lobby-hint" style="margin:10px 0 0"></div>
+      <button class="ghost sm" style="width:100%;margin-top:10px" onclick="leaveRoom()">ออกจากห้อง</button>
     </div>
   </div>
+</section>
 
-  <!-- MODAL: LOAD & MANAGE CLOUD ROOMS -->
-  <div id="modal-load-cloud" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3 hidden">
-    <div class="pixel-border bg-pix-panel p-4 sm:p-6 max-w-xl w-full max-h-[90vh] flex flex-col space-y-3">
-      <div class="flex justify-between items-center border-b-2 border-pix-white pb-2">
-        <h3 class="font-sans font-bold text-base sm:text-lg text-yellow-400">📂 จัดการห้องเกมบน SUPABASE</h3>
-        <button onclick="closeModal('modal-load-cloud')" class="text-white hover:text-red-400 font-pixel text-sm p-1">✕</button>
-      </div>
+<script>
+/* ==========================================================
+   CONFIG & INITIALIZATION
+   ========================================================== */
+const DEF_SURL='https://dyeawzghljtpsospbbod.supabase.co';
+const DEF_SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5ZWF3emdobGp0cHNvc3BiYm9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NDQ4MjQsImV4cCI6MjEwNjQyMDgyNH0.X8gCIzik3lkosD65fsowqMPyn7FvkITJQZYh3oEua40';
+const DEF_MODEL='gemini-2.0-flash';
+const LS={surl:'plapao_surl',skey:'plapao_skey',gkey:'plapao_gkey',model:'plapao_model',cid:'plapao_cid'};
 
-      <div class="flex gap-2">
-        <input type="text" id="input-load-room-code" placeholder="พิมพ์รหัสห้อง (เช่น ROOM-4819)..." class="flex-1 bg-pix-black border border-white text-white p-2 text-sm outline-none uppercase font-pixel">
-        <button onclick="loadByTypedCode()" class="pixel-btn bg-green-600 hover:bg-green-500 text-white font-sans font-bold text-xs sm:text-sm px-3 py-1.5 shrink-0">
-          โหลด
-        </button>
-      </div>
+let CLIENT_ID=localStorage.getItem(LS.cid);
+if(!CLIENT_ID){CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():'c'+Date.now()+Math.random().toString(36).slice(2));
+  localStorage.setItem(LS.cid,CLIENT_ID);}
 
-      <div class="flex justify-between items-center text-xs font-sans text-gray-400 border-b border-pix-border pb-1">
-        <span>หรือคลิกเลือกห้องที่เคยบันทึกไว้:</span>
-        <button onclick="fetchCloudRoomsList()" class="text-blue-400 hover:underline">🔄 รีเฟรชรายการ</button>
-      </div>
+let sb=null,busy=false,currentTab='action',editingRoomCode=null;
+const BASE={hp:20,maxHp:20,atk:5,def:3,gold:0,exp:0,level:1,items:[]};
+const state={
+  room:null,status:'lobby',genre:'',setting:'',worldSummary:'',
+  activeQuests:[],metNpcs:[],storyLogs:[],seats:{},online:new Set(),
+  turnCount:1,actingPlayer:1,pendingRoll:null,lastActionText:'',gmBusy:false,mySeat:0,
+  players:{1:null,2:null}
+};
 
-      <div id="cloud-rooms-list" class="flex-1 overflow-y-auto space-y-2 max-h-64 pr-1">
-        <div class="text-center text-gray-500 text-sm py-4">กำลังโหลดรายการห้อง...</div>
-      </div>
+const el=id=>document.getElementById(id);
+const val=id=>el(id)?el(id).value:'';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));el(id).classList.add('active');}
+const cfg=(k,d)=>localStorage.getItem(k)||d;
+const nameOf=i=>(state.players[i]&&state.players[i].name)||('ผู้เล่น '+i);
+const other=i=>i===1?2:1;
 
-      <div class="flex justify-end border-t border-pix-border pt-2">
-        <button onclick="closeModal('modal-load-cloud')" class="pixel-btn bg-gray-700 text-white font-sans font-bold text-xs px-4 py-2">ปิด</button>
-      </div>
-    </div>
-  </div>
+function toast(m,k){const d=document.createElement('div');d.className='toast'+(k?' '+k:'');d.textContent=m;
+  el('toasts').appendChild(d);setTimeout(()=>{d.style.cssText+='opacity:0;transform:translateX(30px);transition:.3s';
+  setTimeout(()=>d.remove(),300);},3600);}
+function flashPanel(id,k){const e=el(id);if(!e)return;const c=k==='lose'?'fx-lose':'fx-gain';
+  e.classList.remove(c);void e.offsetWidth;e.classList.add(c);}
+function shake(id){const e=el(id);if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');}
+function timeAgo(ts){const s=(Date.now()-new Date(ts).getTime())/1000;
+  if(s<60)return 'เมื่อครู่';if(s<3600)return Math.floor(s/60)+' นาทีก่อน';
+  if(s<86400)return Math.floor(s/3600)+' ชม.ก่อน';return Math.floor(s/86400)+' วันก่อน';}
 
-  <script>
-    const THEME_ROLES_DATA = {
-      'Fantasy': [
-        { name: '⚔️ นักรบดาบใหญ่ (Warrior)', hp: 22, atk: 14, def: 14 },
-        { name: '🔮 จอมเวทธาตุ (Elementalist)', hp: 14, atk: 19, def: 8 },
-        { name: '🛡️ อัศวินศักดิ์สิทธิ์ (Paladin)', hp: 24, atk: 11, def: 16 },
-        { name: '🗡️ จอมโจรเงา (Shadow Rogue)', hp: 16, atk: 18, def: 9 },
-        { name: '✨ นักบวชรักษา (Cleric)', hp: 17, atk: 13, def: 12 },
-        { name: '🏹 นายพรานเอลฟ์ (Ranger)', hp: 18, atk: 16, def: 10 }
-      ],
-      'Horror': [
-        { name: '🔦 ผู้รอดชีวิต (Survivor)', hp: 20, atk: 12, def: 13 },
-        { name: '🕯️ คนทรงวิญญาณ (Medium)', hp: 15, atk: 18, def: 9 },
-        { name: '🩺 หมอนิติเวช (Coroner)', hp: 17, atk: 14, def: 12 },
-        { name: '✝️ นักบวชปราบผี (Exorcist)', hp: 18, atk: 16, def: 11 },
-        { name: '📷 นักข่าวสายลี้ลับ (Occult Journalist)', hp: 16, atk: 15, def: 11 }
-      ],
-      'Sci-Fi': [
-        { name: '🦾 วิศวกรไซบอร์ก (Cyborg Engineer)', hp: 22, atk: 14, def: 15 },
-        { name: '💻 เน็ตแฮกเกอร์ (Netrunner)', hp: 14, atk: 20, def: 8 },
-        { name: '🚀 นักบินอวกาศ (Star Pilot)', hp: 18, atk: 15, def: 12 },
-        { name: '🔫 ทหารนาวิกอวกาศ (Space Marine)', hp: 23, atk: 16, def: 13 },
-        { name: '🧬 นักพันธุศาสตร์ (Geneticist)', hp: 15, atk: 17, def: 10 }
-      ],
-      'Mystery': [
-        { name: '🔍 นักสืบเอกชน (Private Detective)', hp: 18, atk: 15, def: 12 },
-        { name: '👮 สารวัตรสืบสวน (Police Inspector)', hp: 21, atk: 14, def: 14 },
-        { name: '📜 ผู้เชี่ยวชาญรหัสลับ (Cryptographer)', hp: 14, atk: 19, def: 9 },
-        { name: '🕵️ สายข่าวใต้ดิน (Informant)', hp: 16, atk: 16, def: 11 }
-      ],
-      'Survival': [
-        { name: '🏹 พรานป่าชำนาญทาง (Pathfinder)', hp: 18, atk: 16, def: 11 },
-        { name: '💉 หมอสนาม (Field Medic)', hp: 17, atk: 13, def: 13 },
-        { name: '🔨 ช่างประดิษฐ์ซากขยะ (Scavenger)', hp: 19, atk: 14, def: 13 },
-        { name: '🪓 ทหารผ่านศึก (Veteran)', hp: 22, atk: 15, def: 14 }
-      ],
-      'Adventure': [
-        { name: '🏺 นักโบราณคดี (Archaeologist)', hp: 17, atk: 14, def: 12 },
-        { name: '💎 นักล่าสมบัติ (Treasure Hunter)', hp: 19, atk: 16, def: 11 },
-        { name: '🗺️ นักทำแผนที่ (Cartographer)', hp: 16, atk: 14, def: 12 },
-        { name: '🧭 นักเดินป่ามืออาชีพ (Explorer)', hp: 21, atk: 14, def: 13 }
-      ],
-      'Comedy': [
-        { name: '🤡 ตัวตลกจำเป็น (Accidental Hero)', hp: 20, atk: 13, def: 12 },
-        { name: '🪄 นักมายากลตกอับ (Failed Magician)', hp: 15, atk: 18, def: 9 },
-        { name: '🍀 จอมดวงดีสุดเพี้ยน (Lucky Goof)', hp: 16, atk: 16, def: 12 },
-        { name: '💣 นักประดิษฐ์สายระเบิด (Mad Tinkerer)', hp: 14, atk: 20, def: 8 }
-      ],
-      'Custom': [
-        { name: '👤 ตัวเอกคนสำคัญ (Protagonist)', hp: 19, atk: 14, def: 12 },
-        { name: '🤝 สหายคู่หู (Loyal Companion)', hp: 18, atk: 13, def: 13 },
-        { name: '🧠 จอมวางแผน (Tactician)', hp: 15, atk: 17, def: 10 },
-        { name: '🛠️ ผู้เชี่ยวชาญสารพัดช่าง (Specialist)', hp: 17, atk: 15, def: 12 },
-        { name: '🕶️ คนนอกลึกลับ (Outsider)', hp: 16, atk: 16, def: 11 }
-      ]
-    };
+function checkCustomGenre(){
+  const sel=val('in-genre');
+  el('custom-genre-box').classList.toggle('hidden', sel!=='custom');
+}
 
-    const state = {
-      apiKey: '',
-      supabaseUrl: 'https://kcmhxitrrzdyxrifcrrb.supabase.co',
-      supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjbWh4aXRycnpkeXhyaWZjcnJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODExNDMsImV4cCI6MjEwNjM1NzE0M30.gXQsZzU3PNYCoIDcpmGLE1or6mKGKV5_BXGXlFFoCVA',
-      currentRoomCode: '',
-      currentScreen: 'home',
-      selectedGenre: 'Fantasy',
-      customSettingText: '',
-      worldSummary: 'เพิ่งเริ่มต้นการเดินทางผจญภัย',
-      quests: ['เริ่มต้นสำรวจและเอาชีวิตรอด'],
-      npcs: [],
-      actingPlayer: 1,
-      turnCount: 1,
-      lastActionText: '',
-      pendingRoll: false,
-      players: {
-        1: { name: 'Player 1', class: '⚔️ นักรบดาบใหญ่ (Warrior)', hp: 22, maxHp: 22, atk: 14, def: 14, gold: 50, level: 1, items: [] },
-        2: { name: 'Player 2', class: '🔮 จอมเวทธาตุ (Elementalist)', hp: 14, maxHp: 14, atk: 20, def: 12, gold: 50, level: 1, items: [] }
-      },
-      storyLogs: [],
-      systemLogs: ['[System] PLAPAO The GM Initialized.']
-    };
+function switchInputTab(tab){
+  currentTab=tab;
+  el('tab-action').classList.toggle('active', tab==='action');
+  el('tab-ask').classList.toggle('active', tab==='ask');
+  el('panel-action').classList.toggle('hidden', tab!=='action');
+  el('panel-ask').classList.toggle('hidden', tab!=='ask');
+}
 
-    let supabaseClient = null;
+function saveConfig(){
+  localStorage.setItem(LS.gkey,val('cfg-gemini').trim());
+  localStorage.setItem(LS.model,val('cfg-model').trim()||DEF_MODEL);
+  localStorage.setItem(LS.surl,val('cfg-surl').trim()||DEF_SURL);
+  localStorage.setItem(LS.skey,val('cfg-skey').trim());
+  initSupabase();loadRoomList();toast('บันทึกการตั้งค่าแล้ว','gain');
+}
+function loadConfig(){
+  el('cfg-gemini').value=cfg(LS.gkey,'');el('cfg-model').value=cfg(LS.model,DEF_MODEL);
+  el('cfg-surl').value=cfg(LS.surl,DEF_SURL);el('cfg-skey').value=cfg(LS.skey,DEF_SKEY);
+}
+function initSupabase(){
+  const u=cfg(LS.surl,DEF_SURL),k=cfg(LS.skey,DEF_SKEY);
+  if(!u||!k){sb=null;return;}
+  try{sb=supabase.createClient(u,k,{realtime:{params:{eventsPerSecond:10}}});}catch(e){sb=null;console.error(e);}
+}
 
-    // ระบบโหลด Keys จาก LocalStorage
-    function loadSavedKeys() {
-      const savedGeminiKey = localStorage.getItem('plapao_gemini_key');
-      const savedSupabaseUrl = localStorage.getItem('plapao_supabase_url');
-      const savedSupabaseKey = localStorage.getItem('plapao_supabase_key');
+/* ==========================================================
+   TAG ENGINE & STAT REWARDS
+   ========================================================== */
+const TAG={
+  itemAdd:/\[\s*ITEM_ADD\s*[:|]\s*(P[12])\s*\|\s*([^\]|]+?)\s*\]/gi,
+  itemRemove:/\[\s*ITEM_REMOVE\s*[:|]\s*(P[12])\s*\|\s*([^\]|]+?)\s*\]/gi,
+  stat:/\[\s*STAT_UPDATE\s*[:|]\s*(P[12])\s*\|\s*(HP|MAXHP|ATK|DEF|GOLD|EXP|LEVEL)\s*:\s*([+\-=]?)\s*(\d+)\s*\]/gi,
+  questAdd:/\[\s*QUEST_ADD\s*[:|]\s*([^\]]+?)\s*\]/gi,
+  questDone:/\[\s*QUEST_DONE\s*[:|]\s*([^\]]+?)\s*\]/gi,
+  npc:/\[\s*NPC_MET\s*[:|]\s*([^\]]+?)\s*\]/gi,
+  leftover:/\[\s*[A-Z][A-Z_]{2,}\s*[:|][^\]]*\]/g
+};
+const FIELD={HP:'hp',MAXHP:'maxHp',ATK:'atk',DEF:'def',GOLD:'gold',EXP:'exp',LEVEL:'level'};
+const CLAMP={HP:(p,v)=>Math.max(0,Math.min(p.maxHp,v)),MAXHP:(p,v)=>Math.max(1,v),
+  ATK:(p,v)=>Math.max(1,v),DEF:(p,v)=>Math.max(0,v),GOLD:(p,v)=>Math.max(0,v),
+  EXP:(p,v)=>Math.max(0,v),LEVEL:(p,v)=>Math.max(1,v)};
+const normItem=s=>String(s).replace(/\s+/g,' ').replace(/^["'“”‘’]+|["'“”‘’]+$/g,'').trim();
 
-      if (savedGeminiKey) state.apiKey = savedGeminiKey;
-      if (savedSupabaseUrl) state.supabaseUrl = savedSupabaseUrl;
-      if (savedSupabaseKey) state.supabaseKey = savedSupabaseKey;
+function processGmRewardsAndStats(responseText){
+  const raw=String(responseText||'');const notes=[];let changed=false;
 
-      initSupabase();
-    }
+  for(const m of raw.matchAll(TAG.itemAdd)){
+    const i=m[1].toUpperCase()==='P1'?1:2,item=normItem(m[2]);
+    const p=state.players[i];if(!p||!item)continue;p.items=p.items||[];
+    if(p.items.some(x=>x.toLowerCase()===item.toLowerCase()))continue;
+    p.items.push(item);changed=true;
+    notes.push('🎁 '+p.name+' ได้รับ: '+item);
+    toast('🎁 '+p.name+' ได้รับ "'+item+'"','gain');flashPanel('p'+i+'-card','gain');
+  }
+  for(const m of raw.matchAll(TAG.itemRemove)){
+    const i=m[1].toUpperCase()==='P1'?1:2,item=normItem(m[2]);
+    const p=state.players[i];if(!p)continue;p.items=p.items||[];
+    let k=p.items.findIndex(x=>x.toLowerCase()===item.toLowerCase());
+    if(k===-1)k=p.items.findIndex(x=>x.toLowerCase().includes(item.toLowerCase()));
+    if(k===-1)continue;
+    const rm=p.items.splice(k,1)[0];changed=true;
+    notes.push('💨 '+p.name+' เสีย: '+rm);
+    toast('💨 '+p.name+' เสีย "'+rm+'"','lose');flashPanel('p'+i+'-card','lose');
+  }
+  for(const m of raw.matchAll(TAG.stat)){
+    const i=m[1].toUpperCase()==='P1'?1:2,key=m[2].toUpperCase(),op=m[3]||'+',num=parseInt(m[4],10);
+    const p=state.players[i];if(!p||!isFinite(num))continue;
+    const f=FIELD[key],before=Number(p[f])||0;
+    const target=op==='='?num:(op==='-'?before-num:before+num);
+    p[f]=CLAMP[key](p,target);
+    if(key==='MAXHP')p.hp=Math.min(p.hp,p.maxHp);
+    const d=p[f]-before;if(d===0&&op!=='=')continue;changed=true;
+    if(key==='HP'){
+      if(d<0){notes.push('🩸 '+p.name+' เสียเลือด '+Math.abs(d)+' → '+p.hp+'/'+p.maxHp);
+        toast('🩸 '+p.name+' '+d+' HP','lose');flashPanel('p'+i+'-hp-panel','lose');shake('p'+i+'-card');}
+      else{notes.push('💚 '+p.name+' ฟื้นฟู +'+d+' → '+p.hp+'/'+p.maxHp);
+        toast('💚 '+p.name+' +'+d+' HP','gain');flashPanel('p'+i+'-hp-panel','gain');}
+      if(p.hp===0)notes.push('💀 '+p.name+' หมดสติ!');
+    }else if(key==='GOLD'){
+      notes.push('🪙 '+p.name+' '+(d>=0?'+':'')+d+' ทอง (รวม '+p.gold+')');
+      toast('🪙 '+p.name+' '+(d>=0?'+':'')+d+' G',d>=0?'gain':'lose');
+    }else if(key==='LEVEL'){
+      notes.push('⭐ '+p.name+' เลเวลอัป → Lv.'+p.level);
+      toast('⭐ '+p.name+' Lv.'+p.level,'gain');flashPanel('p'+i+'-card','gain');
+    }else notes.push('📈 '+p.name+' '+key+' '+(d>=0?'+':'')+d+' → '+p[f]);
+  }
+  for(const m of raw.matchAll(TAG.questAdd)){
+    const q=normItem(m[1]);if(!q)continue;state.activeQuests=state.activeQuests||[];
+    if(!state.activeQuests.includes(q)){state.activeQuests.push(q);changed=true;
+      notes.push('📜 ภารกิจ/เบาะแสใหม่: '+q);toast('📜 '+q);}
+  }
+  for(const m of raw.matchAll(TAG.questDone)){
+    const q=normItem(m[1]);
+    const k=(state.activeQuests||[]).findIndex(x=>x.toLowerCase().includes(q.toLowerCase()));
+    if(k>-1){notes.push('✅ สำเร็จ: '+state.activeQuests.splice(k,1)[0]);changed=true;}
+  }
+  for(const m of raw.matchAll(TAG.npc)){
+    const n=normItem(m[1]);state.metNpcs=state.metNpcs||[];
+    if(n&&!state.metNpcs.includes(n)){state.metNpcs.push(n);changed=true;}
+  }
 
-    function initSupabase() {
-      if (state.supabaseUrl && state.supabaseKey && window.supabase) {
-        supabaseClient = window.supabase.createClient(state.supabaseUrl, state.supabaseKey);
-        appendSystemLog('[DB] เชื่อมต่อ Supabase Client เรียบร้อย');
-      }
-    }
+  const cleaned=raw.replace(TAG.itemAdd,'').replace(TAG.itemRemove,'').replace(TAG.stat,'')
+    .replace(TAG.questAdd,'').replace(TAG.questDone,'').replace(TAG.npc,'')
+    .replace(TAG.leftover,'').replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
 
-    // คำนวณและปรับ Stat Balancing ให้เท่าเทียมกันตาม HP
-    function calculateBalancedStats(roleName1, roleName2) {
-      let p1Base = findRoleBaseStat(roleName1);
-      let p2Base = findRoleBaseStat(roleName2);
+  renderStats();renderBags();renderQuests();
+  if(changed)queueSave();
+  return {cleanedText:cleaned,notifications:notes};
+}
 
-      let p1 = { hp: p1Base.hp, maxHp: p1Base.hp, atk: p1Base.atk, def: p1Base.def };
-      let p2 = { hp: p2Base.hp, maxHp: p2Base.hp, atk: p2Base.atk, def: p2Base.def };
+/* ==========================================================
+   RENDER & UI
+   ========================================================== */
+const _tw={};
+function tweenNumber(id,to,dur){
+  const e=el(id);if(!e)return;dur=dur||500;
+  const from=parseInt(e.dataset.v!=null?e.dataset.v:e.textContent,10)||0;
+  if(from===to){e.textContent=to;e.dataset.v=to;return;}
+  cancelAnimationFrame(_tw[id]);const t0=performance.now();
+  const step=t=>{const k=Math.min(1,(t-t0)/dur),ez=1-Math.pow(1-k,3);
+    const v=Math.round(from+(to-from)*ez);e.textContent=v;e.dataset.v=v;
+    if(k<1)_tw[id]=requestAnimationFrame(step);};
+  _tw[id]=requestAnimationFrame(step);
+}
+function renderStats(){
+  [1,2].forEach(i=>{
+    const p=state.players[i],card=el('p'+i+'-card');
+    const seat=state.seats&&state.seats[i];
+    el('p'+i+'-dot').classList.toggle('on',state.online.has(i));
+    el('p'+i+'-you').classList.toggle('hidden',state.mySeat!==i);
+    if(!p){card.classList.add('empty');
+      el('p'+i+'-name-txt').textContent='(ที่นั่งว่าง)';
+      el('p'+i+'-class-txt').textContent=seat?'กำลังสร้างตัวละคร…':'รอผู้เล่นเข้าร่วม';
+      return;}
+    card.classList.remove('empty');
+    el('p'+i+'-name-txt').textContent=p.name;
+    el('p'+i+'-class-txt').textContent=p.class;
+    el('p'+i+'-lv').textContent=p.level;
+    const pct=Math.max(0,Math.min(100,(p.hp/Math.max(1,p.maxHp))*100));
+    const bar=el('p'+i+'-hp-bar');bar.style.width=pct+'%';
+    bar.classList.toggle('hp-mid',pct<=55&&pct>28);
+    bar.classList.toggle('hp-low',pct<=28);
+    tweenNumber('p'+i+'-hp',p.hp);tweenNumber('p'+i+'-gold',p.gold);
+    el('p'+i+'-maxhp').textContent=p.maxHp;el('p'+i+'-atk').textContent=p.atk;el('p'+i+'-def').textContent=p.def;
+    card.classList.toggle('active-turn',state.actingPlayer===i&&state.status==='playing');
+    card.classList.toggle('down',p.hp===0);
+  });
+}
+function renderBags(){[1,2].forEach(renderBag);}
+function renderBag(i){
+  const ul=el('p'+i+'-bag');if(!ul)return;
+  const items=(state.players[i]&&state.players[i].items)||[];
+  const want=new Map(items.map(x=>[x.toLowerCase(),x]));
+  const have=new Map([...ul.children].map(li=>[li.dataset.key,li]));
+  have.forEach((li,k)=>{if(!want.has(k)){li.classList.add('leaving');setTimeout(()=>li.remove(),250);}});
+  want.forEach((label,k)=>{if(have.has(k))return;
+    const li=document.createElement('li');li.dataset.key=k;li.textContent=label;ul.appendChild(li);});
+  el('p'+i+'-count').textContent=items.length;
+  el('p'+i+'-empty').style.display=items.length?'none':'block';
+}
+function renderQuests(){
+  const qs=state.activeQuests||[];
+  el('quest-list').innerHTML=qs.map(q=>'<li>'+esc(q)+'</li>').join('');
+  el('quest-empty').style.display=qs.length?'none':'block';
+}
+function msgHtml(m){
+  if(m.role==='sys')return '<div class="msg sys">'+esc(m.text)+'</div>';
+  if(m.role==='notif')return '<div class="msg notif">'+esc(m.text)+'</div>';
+  if(m.role==='gm')return '<div class="msg gm"><div class="who">👑 GM</div><div class="body">'+esc(m.text)+'</div></div>';
+  if(m.role==='ask-gm')return '<div class="msg ask-gm"><div class="who">💬 '+esc(m.name||'ผู้เล่น')+' (คุยนอกรอบกับ GM)</div><div class="body">'+esc(m.text)+'</div></div>';
+  const i=m.role==='p1'?1:2;
+  return '<div class="msg '+m.role+'"><div class="who">⚔️ '+esc(m.name||nameOf(i))+'</div><div class="body">'+esc(m.text)+'</div></div>';
+}
+function renderStoryLog(){
+  const box=el('story');
+  box.innerHTML=(state.storyLogs||[]).map(msgHtml).join('');
+  if(state.gmBusy&&!busy)box.insertAdjacentHTML('beforeend',typingHtml());
+  box.scrollTop=box.scrollHeight;
+}
+function pushLog(role,text,name){
+  state.storyLogs=state.storyLogs||[];
+  const m={role:role,text:text,ts:Date.now()};
+  if(name)m.name=name;
+  state.storyLogs.push(m);
+  if(state.storyLogs.length>200)state.storyLogs=state.storyLogs.slice(-200);
+  const box=el('story');box.insertAdjacentHTML('beforeend',msgHtml(m));box.scrollTop=box.scrollHeight;
+}
+function typingHtml(){return '<div class="msg gm" id="typing"><div class="who">👑 GM กำลังร้อยเรียงเรื่องราว...</div><div class="body"><span class="typing"><i></i><i></i><i></i></span></div></div>';}
+function showTyping(){if(el('typing'))return;const b=el('story');b.insertAdjacentHTML('beforeend',typingHtml());b.scrollTop=b.scrollHeight;}
+function hideTyping(){const t=el('typing');if(t)t.remove();}
 
-      if (p1.hp < p2.hp) {
-        let diff = p2.hp - p1.hp;
-        p1.atk += Math.ceil(diff * 0.7);
-        p1.def += Math.floor(diff * 0.5);
-      } else if (p2.hp < p1.hp) {
-        let diff = p1.hp - p2.hp;
-        p2.atk += Math.ceil(diff * 0.7);
-        p2.def += Math.floor(diff * 0.5);
-      }
+function updateTurnUI(){
+  const chip=el('turn-chip'),playing=state.status==='playing';
+  const mine=playing&&state.actingPlayer===state.mySeat;
+  chip.textContent=!playing?'🏕️ ล็อบบี้':(mine?'▶ ตาคุณแล้ว!':'⏳ รอ '+nameOf(state.actingPlayer));
+  chip.classList.toggle('mine',mine);
 
-      return { p1, p2 };
-    }
+  const me=state.mySeat?nameOf(state.mySeat):'โหมดผู้ชม';
+  el('whoami').innerHTML='<span class="dot on"></span> คุณคือ <b>'+esc(me)+'</b>'+
+    (state.mySeat?' · เล่นเทิร์นที่ '+state.turnCount:' (ดูอย่างเดียว)');
 
-    function findRoleBaseStat(roleName) {
-      for (const cat in THEME_ROLES_DATA) {
-        const found = THEME_ROLES_DATA[cat].find(r => r.name === roleName || roleName.includes(r.name.split(' ')[1]));
-        if (found) return found;
-      }
-      return { hp: 18, atk: 14, def: 12 };
-    }
+  const needRoll=state.pendingRoll!=null;
+  el('dice-box').classList.toggle('hidden',!needRoll||!playing);
+  if(needRoll){
+    const canRoll=state.pendingRoll===state.mySeat;
+    el('dice-label').innerHTML='🎲 ถึงคิว <b>'+nameOf(state.pendingRoll)+'</b> ทอยเต๋า D20!';
+    el('dice-btn').disabled=!canRoll||busy;
+    el('dice-btn').textContent=canRoll?'กดทอย D20 ตอนนี้!':'รอ '+nameOf(state.pendingRoll)+' ทอยเต๋า...';
+  }
 
-    const SYSTEM_GM_PROMPT = `
-คุณคือ "PLAPAO The GM" (ปลาเผา เดอะ จีเอ็ม) ทำหน้าที่ดำเนินเรื่องราว Text RPG สำหรับผู้เล่น 2 คน
-กฎเหล็กในการทำงาน:
-1. ผู้เล่น 2 คนเป็นตัวละครหลัก ห้ามตัดสินใจหรือทำแอคชั่นแทนผู้เล่นเด็ดขาด
-2. ตัวละครเริ่มต้นโดย "ไม่มีไอเทมในกระเป๋า" หากผู้เล่นสำรวจ เจอกล่องสมบัติ ขโมย หรือได้รับของรางวัลจากเหตุการณ์ ให้คุณมอบไอเทมให้ผู้เล่นโดยระบุแท็กพิเศษต่อท้ายคำตอบเสมอ เช่น:
-   [ITEM_ADD: P1 | ดาบสนิมเขรอะ (+2 ATK)]
-   หรือ
-   [ITEM_ADD: P2 | น้ำยาฟื้นฟูพลัง x1]
-   (ระบบหน้าเว็บจะตรวจจับแท็กนี้และเพิ่มเข้ากระเป๋าผู้เล่นอัตโนมัติ)
-3. ลำดับการทอยเต๋า:
-   - ผู้เล่นจะส่ง "Action" เข้ามาก่อนเสมอ
-   - หาก Action เป็นการกระทำปกติทั่วไป ให้บรรยายผลลัพธ์ได้เลย ไม่ต้องสั่งทอย
-   - หาก Action มี "ความเสี่ยง อันตราย โอกาสพลาด หรือการต่อสู้" ให้บรรยายจังหวะเตรียมตัว แล้วสั่งให้ผู้เล่น "ทอยลูกเต๋า D20" เพื่อตัดสินผล (ต้องมีคำว่า "ทอยลูกเต๋า D20" เสมอ)
-4. เมื่อผู้เล่นส่งผลแต้มลูกเต๋ามา ให้บรรยายผลสำเร็จหรือล้มเหลวตามระดับแต้ม (1-9 = พลาด, 10-14 = สำเร็จเฉียดฉิว, 15-20 = สำเร็จยอดเยี่ยม) และทิ้งท้ายคำถามรอการกระทำถัดไปเสมอ
-`;
+  el('btn-send').disabled=busy||!mine||needRoll||state.gmBusy;
+  el('in-action').disabled=!mine||needRoll;
+  el('in-action').placeholder=!state.mySeat?'คุณอยู่ในโหมดผู้ชม':
+    (needRoll?'กำลังรอการทอยลูกเต๋า D20...':(mine?'พิมพ์การกระทำของ '+nameOf(state.mySeat)+' ในเทิร์นนี้...':'รอ '+nameOf(state.actingPlayer)+' เล่นจบเทิร์นก่อน…'));
+}
 
-    function buildGmPrompt(actionText) {
-      const p1 = state.players[1];
-      const p2 = state.players[2];
+function renderLobby(){
+  const inLobby=state.status==='lobby';
+  el('lobby').classList.toggle('hidden',!inLobby);
+  if(!inLobby)return;
+  el('lobby-code').textContent=state.room;
+  el('lobby-slots').innerHTML=[1,2].map(i=>{
+    const p=state.players[i],on=state.online.has(i);
+    return '<div class="slot"><span class="dot'+(on?' on':'')+'"></span><div style="flex:1">'+
+      '<div class="nm">'+(p?esc(p.name):'ที่นั่งว่าง')+(state.mySeat===i?' <span class="you">คุณ</span>':'')+'</div>'+
+      '<div class="cl">'+(p?esc(p.class)+(on?' · ออนไลน์':' · ออฟไลน์'):'รอเพื่อนเข้าร่วม…')+'</div></div></div>';
+  }).join('');
+  const host=state.mySeat===1,both=state.players[1]&&state.players[2];
+  el('lobby-start').classList.toggle('hidden',!host);
+  el('lobby-start').disabled=!host||busy;
+  el('lobby-start').textContent=both?'เริ่มการผจญภัย':'เริ่มเลย (คนเดียว)';
+  el('lobby-hint').textContent=host?(both?'ทุกคนพร้อมแล้ว เริ่มได้เลย!':'รออีกคนเข้าร่วม หรือกดเริ่มคนเดียวได้'):'รอผู้เล่น 1 กดเริ่มเกม…';
+}
+function updateUI(){renderStats();renderBags();renderQuests();updateTurnUI();renderLobby();}
 
-      return `
-=== [LONG-TERM MEMORY: สรุปเรื่องราวสะสม] ===
-${state.worldSummary}
-[ภารกิจปัจจุบัน]: ${state.quests.join(', ')}
-[NPC ที่เคยพบ]: ${state.npcs.map(n => `${n.name} (${n.desc})`).join(' | ') || 'ยังไม่มี'}
+/* ==========================================================
+   SUPABASE DATA SYNC & REALTIME
+   ========================================================== */
+let _t=null,_saving=false,_again=false,_lastTs=null;
+function setSyncBadge(s){const e=el('sync-badge');if(!e)return;
+  const m={saving:'กำลังบันทึก…',ok:'บันทึกแล้ว',synced:'ซิงก์แล้ว',live:'● ออนไลน์',
+    reconnecting:'กำลังเชื่อมต่อ…',error:'ออฟไลน์'};e.textContent=m[s]||s;e.dataset.state=s;}
 
-=== [PLAYER STATE INJECTION: สถานะผู้เล่นปัจจุบัน] ===
-- P1: ${p1.name} (${p1.class}) | HP: ${p1.hp}/${p1.maxHp} | ATK: ${p1.atk} | DEF: ${p1.def} | ไอเทม: ${p1.items.length > 0 ? p1.items.join(', ') : 'ไม่มี'} | เงิน: ${p1.gold} Gold
-- P2: ${p2.name} (${p2.class}) | HP: ${p2.hp}/${p2.maxHp} | ATK: ${p2.atk} | DEF: ${p2.def} | ไอเทม: ${p2.items.length > 0 ? p2.items.join(', ') : 'ไม่มี'} | เงิน: ${p2.gold} Gold
-
-=== [SHORT-TERM CONTEXT: 3 เทิร์นล่าสุด] ===
-${state.storyLogs.slice(-3).map(l => `${l.sender}:${l.text}`).join('\n')}
-
-=== [ACTION ปัจจุบันที่ต้องประเมิน] ===
-Player ${state.actingPlayer} (${state.players[state.actingPlayer].name} - ${state.players[state.actingPlayer].class}) ประกาศทำ Action: "${actionText}"
-`;
-    }
-
-    // ฟังก์ชันตรวจจับและเพิ่มไอเทมที่ GM มอบให้
-    function processGmItemRewards(responseText) {
-      const itemRegex = /\[ITEM_ADD:\s*(P1\vert{}P2)\s*\Vert{}\s*([^\]]+)\]/gi;
-      let match;
-      let cleanedText = responseText;
-
-      while ((match = itemRegex.exec(responseText)) !== null) {
-        const targetPlayer = match[1].toUpperCase() === 'P1' ? 1 : 2;
-        const itemName = match[2].trim();
-
-        if (!state.players[targetPlayer].items.includes(itemName)) {
-          state.players[targetPlayer].items.push(itemName);
-          appendSystemLog(`[Inventory] GM ได้มอบ "${itemName}" ให้แก่ ${state.players[targetPlayer].name} (P${targetPlayer})`);
-        }
-      }
-
-      // ลบแท็กคำสั่งออกจากข้อความที่จะแสดงในหน้าต่างแชท
-      cleanedText = cleanedText.replace(itemRegex, '').trim();
-      return cleanedText;
-    }
-
-    async function updateWorldSummaryBackground(lastAction, gmResponse) {
-      if (!state.apiKey) return;
-
-      const prompt = `
-สรุปความคืบหน้าของเรื่องราว RPG ให้กระชับ ไม่เกิน 3 ประโยค:
-ความจำเดิม: "${state.worldSummary}"
-สิ่งที่เพิ่งเกิดขึ้น:
-- ผู้เล่น: "${lastAction}"
-- ผลลัพธ์: "${gmResponse}"
-
-เขียนสรุปภาพรวมใหม่สั้นๆ ระบุว่าตอนนี้อยู่ที่ไหน พบอะไร และกำลังเผชิญหน้ากับอะไร:`;
-
-      try {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`;
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        const data = await res.json();
-        const sum = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (sum) {
-          state.worldSummary = sum.trim();
-          document.getElementById('world-summary-display').textContent = state.worldSummary;
-          appendSystemLog('[Memory] อัปเดตความจำระยะยาวเรียบร้อย');
-          saveGameToSupabase(true);
-        }
-      } catch (e) {
-        console.error("Auto summarize failed", e);
-      }
-    }
-
-    async function saveGameToSupabase(silent = false) {
-      if (!supabaseClient) {
-        if (!silent) alert('กรุณาตั้งค่า Supabase ในปุ่ม API & DB ก่อนครับ');
-        return;
-      }
-
-      const payload = {
-        room_code: state.currentRoomCode,
-        genre: state.selectedGenre,
-        custom_setting: state.customSettingText,
-        world_summary: state.worldSummary,
-        active_quests: state.quests,
-        met_npcs: state.npcs,
-        players: state.players,
-        story_logs: state.storyLogs.slice(-25),
-        turn_count: state.turnCount,
-        acting_player: state.actingPlayer,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabaseClient
-        .from('game_rooms')
-        .upsert(payload, { onConflict: 'room_code' });
-
-      if (error) {
-        appendSystemLog('[Supabase Error] ' + error.message);
-        if (!silent) alert('บันทึกลงคลาวด์ไม่สำเร็จ: ' + error.message);
-      } else {
-        appendSystemLog(`[Supabase] ซิงก์ห้อง ${state.currentRoomCode} ขึ้นคลาวด์แล้ว`);
-        if (!silent) alert(`บันทึกความคืบหน้าขึ้นคลาวด์สำเร็จ! (รหัสห้อง: ${state.currentRoomCode})`);
-      }
-    }
-
-    async function fetchCloudRoomsList() {
-      const container = document.getElementById('cloud-rooms-list');
-      container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">กำลังโหลดรายการห้อง...</div>';
-
-      if (!supabaseClient) {
-        container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">กรุณาตั้งค่า Supabase ก่อน</div>';
-        return;
-      }
-
-      const { data, error } = await supabaseClient
-        .from('game_rooms')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error || !data || data.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">ยังไม่มีห้องเกมที่บันทึกไว้ใน Supabase</div>';
-        return;
-      }
-
-      container.innerHTML = data.map(room => {
-        const p1 = room.players?.[1]?.name || 'P1';
-        const p2 = room.players?.[2]?.name || 'P2';
-        const dateStr = new Date(room.updated_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
-
-        return `
-          <div class="pixel-box p-2.5 bg-pix-dark border border-gray-700 hover:border-yellow-400 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <div class="cursor-pointer flex-1" onclick="loadRoomByCode('${room.room_code}')">
-              <div class="flex items-center gap-2">
-                <span class="font-pixel text-yellow-400 text-xs">${room.room_code}</span>
-                <span class="text-xs bg-blue-900/60 px-1.5 py-0.5 rounded text-blue-200">${room.genre}</span>
-              </div>
-              <div class="text-sm text-gray-200 mt-1 font-sans">
-                👤 ${p1} & ${p2} <span class="text-xs text-gray-400">(${dateStr})</span>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-1.5 self-end sm:self-center">
-              <button onclick="editRoomGenrePrompt('${room.room_code}', '${room.genre}')" class="pixel-btn bg-pix-panel hover:bg-gray-700 text-white text-[11px] px-2 py-1 font-sans" title="แก้ไขชื่อห้อง/ธีม">
-                ✏️ แก้ไข
-              </button>
-              <button onclick="deleteRoomFromCloud('${room.room_code}')" class="pixel-btn bg-red-700 hover:bg-red-600 text-white text-[11px] px-2 py-1 font-sans" title="ลบห้องนี้">
-                🗑️ ลบ
-              </button>
-              <button onclick="loadRoomByCode('${room.room_code}')" class="pixel-btn bg-green-600 hover:bg-green-500 text-white text-[11px] px-2.5 py-1 font-sans font-bold">
-                เข้าเล่น &rarr;
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function loadRoomByCode(code) {
-      if (!supabaseClient) return;
-
-      const { data, error } = await supabaseClient
-        .from('game_rooms')
-        .select('*')
-        .eq('room_code', code)
-        .single();
-
-      if (error || !data) {
-        alert('ไม่พบห้องเกมนี้บน Supabase');
-        return;
-      }
-
-      state.currentRoomCode = data.room_code;
-      state.selectedGenre = data.genre;
-      state.customSettingText = data.custom_setting || '';
-      state.worldSummary = data.world_summary || 'เพิ่งเริ่มต้นการเดินทาง';
-      state.quests = data.active_quests || ['เริ่มต้นการผจญภัย'];
-      state.npcs = data.met_npcs || [];
-      state.players = data.players;
-      state.storyLogs = data.story_logs || [];
-      state.turnCount = data.turn_count || 1;
-      state.actingPlayer = data.acting_player || 1;
-
-      document.getElementById('story-log').innerHTML = '';
-      state.storyLogs.forEach(l => appendStory(l.sender, l.text, l.type));
-
-      document.getElementById('room-code-display').textContent = state.currentRoomCode;
-      document.getElementById('world-summary-display').textContent = state.worldSummary;
-
-      updateUI();
-      closeModal('modal-load-cloud');
-      showScreen('game');
-      appendSystemLog(`[Supabase] โหลดห้อง ${code} สำเร็จ!`);
-    }
-
-    function loadByTypedCode() {
-      const code = document.getElementById('input-load-room-code').value.trim().toUpperCase();
-      if (!code) {
-        alert('กรุณากรอกรหัสห้อง');
-        return;
-      }
-      loadRoomByCode(code);
-    }
-
-    async function editRoomGenrePrompt(roomCode, currentGenre) {
-      const newGenre = prompt(`แก้ไขชื่อธีมหรือคำอธิบายห้อง ${roomCode}:`, currentGenre);
-      if (newGenre === null || newGenre.trim() === '') return;
-
-      const { error } = await supabaseClient
-        .from('game_rooms')
-        .update({ genre: newGenre.trim(), updated_at: new Date().toISOString() })
-        .eq('room_code', roomCode);
-
-      if (error) {
-        alert('แก้ไขไม่สำเร็จ: ' + error.message);
-      } else {
-        appendSystemLog(`[Supabase] แก้ไขห้อง ${roomCode} เป็น ${newGenre}`);
-        fetchCloudRoomsList();
-      }
-    }
-
-    async function deleteRoomFromCloud(roomCode) {
-      if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบห้อง ${roomCode} อย่างถาวร?`)) return;
-
-      const { error } = await supabaseClient
-        .from('game_rooms')
-        .delete()
-        .eq('room_code', roomCode);
-
-      if (error) {
-        alert('ลบห้องไม่สำเร็จ: ' + error.message);
-      } else {
-        appendSystemLog(`[Supabase] ลบห้อง ${roomCode} เรียบร้อย`);
-        fetchCloudRoomsList();
-      }
-    }
-
-    function openLoadCloudModal() {
-      openModal('modal-load-cloud');
-      fetchCloudRoomsList();
-    }
-
-    function toggleMobileNavMenu(event) {
-      if (event) event.stopPropagation();
-      document.getElementById('mobile-nav-popup').classList.toggle('hidden');
-    }
-
-    function menuAction(fn) {
-      document.getElementById('mobile-nav-popup').classList.add('hidden');
-      if (typeof fn === 'function') fn();
-    }
-
-    window.addEventListener('click', function() {
-      const popup = document.getElementById('mobile-nav-popup');
-      if (popup && !popup.classList.contains('hidden')) popup.classList.add('hidden');
+function payload(){
+  return {room_code:state.room,genre:state.genre,custom_setting:state.setting,
+    world_summary:state.worldSummary,status:state.status,
+    players:state.players,seats:state.seats,
+    active_quests:state.activeQuests||[],met_npcs:state.metNpcs||[],
+    story_logs:(state.storyLogs||[]).slice(-140),
+    turn_count:state.turnCount,acting_player:state.actingPlayer,
+    pending_roll:state.pendingRoll,
+    gm_busy:!!busy,last_writer:CLIENT_ID,updated_at:new Date().toISOString()};
+}
+function queueSave(d){clearTimeout(_t);setSyncBadge('saving');_t=setTimeout(flushSave,d==null?350:d);}
+async function flushSave(){
+  if(!state.room||!sb)return;
+  if(_saving){_again=true;return;}
+  _saving=true;
+  try{
+    const pl=payload();
+    const {error}=await sb.from('game_rooms').upsert(pl,{onConflict:'room_code'});
+    if(error)throw error;
+    _lastTs=pl.updated_at;setSyncBadge('ok');
+  }catch(e){console.error(e);setSyncBadge('error');}
+  finally{_saving=false;if(_again){_again=false;queueSave(100);}}
+}
+function applyRemoteRow(row,force){
+  if(!row)return;
+  if(!force&&row.last_writer===CLIENT_ID)return;
+  if(!force&&_lastTs&&new Date(row.updated_at)<=new Date(_lastTs))return;
+  _lastTs=row.updated_at;
+  state.genre=row.genre||state.genre;state.setting=row.custom_setting||state.setting;
+  state.worldSummary=row.world_summary||state.worldSummary;
+  state.status=row.status||state.status;
+  state.players=row.players&&Object.keys(row.players).length?row.players:state.players;
+  state.seats=row.seats||{};
+  state.activeQuests=row.active_quests||[];state.metNpcs=row.met_npcs||[];
+  state.storyLogs=row.story_logs||state.storyLogs;
+  state.turnCount=row.turn_count!=null?row.turn_count:state.turnCount;
+  state.actingPlayer=row.acting_player!=null?row.acting_player:state.actingPlayer;
+  state.pendingRoll=row.pending_roll!=null?row.pending_roll:null;
+  state.gmBusy=!!row.gm_busy;
+  renderStoryLog();updateUI();setSyncBadge('synced');
+}
+function subscribeRoom(code){
+  if(window._ch){sb.removeChannel(window._ch);window._ch=null;}
+  window._ch=sb.channel('room_'+code,{config:{presence:{key:CLIENT_ID}}})
+    .on('postgres_changes',{event:'*',schema:'public',table:'game_rooms',filter:'room_code=eq.'+code},
+        p=>applyRemoteRow(p.new))
+    .on('presence',{event:'sync'},()=>{
+      const st=window._ch.presenceState();const on=new Set();
+      Object.values(st).forEach(a=>a.forEach(m=>{if(m.seat)on.add(Number(m.seat));}));
+      state.online=on;renderStats();renderLobby();
+    })
+    .subscribe(async s=>{
+      if(s==='SUBSCRIBED'){setSyncBadge('live');await trackPresence();}
+      else setSyncBadge('reconnecting');
+      if(s==='CHANNEL_ERROR'||s==='TIMED_OUT')setTimeout(()=>subscribeRoom(code),2000);
     });
+  clearInterval(window._poll);
+  window._poll=setInterval(async()=>{
+    if(!state.room||document.hidden)return;
+    if(window._ch&&window._ch.state==='joined')return;
+    const {data}=await sb.from('game_rooms').select('*').eq('room_code',state.room).maybeSingle();
+    applyRemoteRow(data);
+  },5000);
+}
+async function trackPresence(){
+  if(!window._ch||window._ch.state!=='joined')return;
+  await window._ch.track({seat:state.mySeat,client_id:CLIENT_ID,name:state.mySeat?nameOf(state.mySeat):'ผู้ชม'});
+}
+async function forceSync(){
+  if(!state.room||!sb)return;
+  const {data}=await sb.from('game_rooms').select('*').eq('room_code',state.room).maybeSingle();
+  applyRemoteRow(data,true);toast('ซิงก์สถานะล่าสุดแล้ว','gain');
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.room)forceSync();});
+window.addEventListener('beforeunload',()=>{if(state.room)flushSave();});
 
-    function showScreen(screenName) {
-      document.getElementById('screen-home').classList.add('hidden');
-      document.getElementById('screen-game').classList.add('hidden');
-      document.getElementById(`screen-${screenName}`).classList.remove('hidden');
-      state.currentScreen = screenName;
-      closeAllDrawers();
+/* ==========================================================
+   ROOM CREATION, JOIN & EDIT/DELETE
+   ========================================================== */
+function randCode(){let s='';const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+
+async function loadRoomList(){
+  const box=el('room-list');
+  if(!sb){box.innerHTML='<div class="bag-empty">ยังไม่ได้เชื่อมต่อ Supabase</div>';return;}
+  box.innerHTML='<div class="bag-empty">กำลังโหลด…</div>';
+  try{
+    const {data,error}=await sb.from('game_rooms')
+      .select('room_code,genre,players,seats,status,turn_count,updated_at')
+      .order('updated_at',{ascending:false}).limit(15);
+    if(error)throw error;
+    if(!data||!data.length){box.innerHTML='<div class="bag-empty">ยังไม่มีห้อง — กดสร้างห้องใหม่ได้เลย</div>';return;}
+    box.innerHTML=data.map(r=>{
+      const pl=r.players||{},seats=r.seats||{};
+      const names=[1,2].map(i=>pl[i]?pl[i].name:null).filter(Boolean).join(' & ')||'ยังไม่มีผู้เล่น';
+      const mine=[1,2].some(i=>seats[i]&&seats[i].client_id===CLIENT_ID);
+      const tag=mine?'<span class="tag open">ห้องของคุณ</span>':
+        ((seats[1]&&seats[2])?'<span class="tag full">เต็ม</span>':'<span class="tag open">ว่าง</span>');
+      return '<div class="ritem">'+
+        '<div class="ritem-click" onclick="joinRoom(\''+r.room_code+'\')">'+
+          '<span class="code">'+esc(r.room_code)+'</span>'+
+          '<span class="meta">'+esc(names)+' · '+esc(r.genre||'ไม่ระบุแนว')+
+          ' · '+(r.status==='lobby'?'กำลังรอ':'เทิร์น '+r.turn_count)+' · '+timeAgo(r.updated_at)+'</span>'+tag+
+        '</div>'+
+        '<div class="ritem-actions">'+
+          '<button class="ghost sm" title="แก้ไขชื่อห้อง/ตัวละคร" onclick="openEditModal(\''+r.room_code+'\')">✏️</button>'+
+          '<button class="danger sm" title="ลบห้องนี้" onclick="deleteRoom(\''+r.room_code+'\')">🗑️</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }catch(e){
+    box.innerHTML='<div class="bag-empty">โหลดห้องไม่สำเร็จ</div>';
+  }
+}
+
+/* --- EDIT ROOM MODAL LOGIC --- */
+async function openEditModal(code){
+  if(!sb)return;
+  editingRoomCode=code;
+  const {data,error}=await sb.from('game_rooms').select('*').eq('room_code',code).maybeSingle();
+  if(error||!data)return toast('ดึงข้อมูลห้องไม่สำเร็จ','lose');
+
+  el('edit-room-sub').textContent='รหัสห้อง: '+code;
+  el('edit-genre').value=data.genre||'';
+
+  const pl=data.players||{};
+  el('edit-p1-name').value=(pl[1]&&pl[1].name)||'';
+  el('edit-p1-class').value=(pl[1]&&pl[1].class)||'';
+  el('edit-p2-name').value=(pl[2]&&pl[2].name)||'';
+  el('edit-p2-class').value=(pl[2]&&pl[2].class)||'';
+
+  el('edit-room-modal').classList.remove('hidden');
+}
+
+function closeEditModal(){
+  el('edit-room-modal').classList.add('hidden');
+  editingRoomCode=null;
+}
+
+async function saveRoomEdit(){
+  if(!editingRoomCode||!sb)return;
+  const newGenre=val('edit-genre').trim();
+  const p1Name=val('edit-p1-name').trim();
+  const p1Class=val('edit-p1-class').trim();
+  const p2Name=val('edit-p2-name').trim();
+  const p2Class=val('edit-p2-class').trim();
+
+  try{
+    const {data:room,error:fetchErr}=await sb.from('game_rooms').select('*').eq('room_code',editingRoomCode).maybeSingle();
+    if(fetchErr||!room)throw new Error('ไม่พบข้อมูลห้อง');
+
+    const updatedPlayers=Object.assign({},room.players||{});
+    if(updatedPlayers[1]&&p1Name){
+      updatedPlayers[1].name=p1Name;
+      if(p1Class)updatedPlayers[1].class=p1Class;
+    }
+    if(updatedPlayers[2]&&p2Name){
+      updatedPlayers[2].name=p2Name;
+      if(p2Class)updatedPlayers[2].class=p2Class;
     }
 
-    function openModal(modalId) {
-      document.getElementById(modalId).classList.remove('hidden');
+    const {error}=await sb.from('game_rooms').update({
+      genre:newGenre||room.genre,
+      players:updatedPlayers,
+      updated_at:new Date().toISOString()
+    }).eq('room_code',editingRoomCode);
+
+    if(error)throw error;
+    toast('บันทึกการแก้ไขห้องแล้ว','gain');
+    closeEditModal();
+    loadRoomList();
+    if(state.room===editingRoomCode)forceSync();
+  }catch(e){
+    toast('บันทึกไม่สำเร็จ: '+e.message,'lose');
+  }
+}
+
+async function deleteRoom(code){
+  if(!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบห้อง '+code+' อย่างถาวร?'))return;
+  try{
+    const {error}=await sb.from('game_rooms').delete().eq('room_code',code);
+    if(error)throw error;
+    toast('ลบห้อง '+code+' สำเร็จ','gain');
+    loadRoomList();
+    if(state.room===code)leaveRoom();
+  }catch(e){
+    toast('ลบห้องไม่สำเร็จ: '+e.message,'lose');
+  }
+}
+
+function newRoom(){
+  if(!sb)return toast('ตั้งค่า Supabase ให้เรียบร้อยก่อนครับ','lose');
+  state.room=randCode();el('setup-room').textContent=state.room;
+  el('host-name').value='';go('setup');
+}
+
+async function createRoom(){
+  if(!cfg(LS.gkey,''))return toast('ใส่ Gemini API Key ก่อนครับ','lose');
+  const nm=val('host-name').trim();
+  if(!nm)return toast('ตั้งชื่อตัวละครก่อนครับ','lose');
+  
+  let g=val('in-genre');
+  if(g==='custom') g=val('in-custom-genre').trim()||'แฟนตาซีอิสระ';
+
+  el('btn-create').disabled=true;
+  state.genre=g;state.setting=val('in-setting').trim();
+  state.players={1:Object.assign({},BASE,{name:nm,class:val('host-class').trim()||'นักผจญภัย',items:[]}),2:null};
+  state.seats={1:{client_id:CLIENT_ID,joined_at:Date.now()}};
+  state.storyLogs=[];state.activeQuests=[];state.metNpcs=[];
+  state.turnCount=1;state.actingPlayer=1;state.pendingRoll=null;
+  state.status='lobby';state.mySeat=1;
+  await flushSave();
+  enterGame();
+  el('btn-create').disabled=false;
+}
+
+let _pendingJoinCode=null;
+function joinByCode(){
+  const c=val('in-room').trim().toUpperCase();
+  if(c.length<4)return toast('ใส่รหัสห้องให้ครบ','lose');
+  joinRoom(c);
+}
+
+async function joinRoom(code){
+  if(!sb)return toast('ตั้งค่า Supabase ให้เรียบร้อยก่อนครับ','lose');
+  const {data,error}=await sb.from('game_rooms').select('*').eq('room_code',code).maybeSingle();
+  if(error||!data)return toast('ไม่พบห้อง '+code,'lose');
+
+  state.room=code;applyRemoteRow(data,true);
+  _pendingJoinCode=code;
+
+  const seats=state.seats||{};
+  const myOldSeat=[1,2].find(i=>seats[i]&&seats[i].client_id===CLIENT_ID);
+  if(myOldSeat){
+    state.mySeat=myOldSeat;
+    enterGame();
+    toast('กลับเข้าห้องเป็น '+nameOf(myOldSeat)+' สำเร็จ!','gain');
+    return;
+  }
+
+  el('join-info').innerHTML='ห้อง <b>'+esc(code)+'</b> · ธีม: <b>'+esc(state.genre||'ทั่วไป')+'</b>';
+  
+  const claimBox=el('claim-box');
+  const claimSlots=el('claim-slots');
+  claimSlots.innerHTML='';
+  
+  let hasExistingPlayers=false;
+  [1,2].forEach(i=>{
+    const p=state.players[i];
+    if(p){
+      hasExistingPlayers=true;
+      const b=document.createElement('button');
+      b.className='ghost';
+      b.style.cssText='width:100%;margin-bottom:8px;text-align:left;display:flex;justify-content:space-between;align-items:center';
+      b.innerHTML='<span>เล่นเป็น <b>'+esc(p.name)+'</b> ('+esc(p.class)+')</span><span class="tag open">สวมสิทธิ์</span>';
+      b.onclick=()=>claimCharacter(i);
+      claimSlots.appendChild(b);
     }
+  });
+  claimBox.classList.toggle('hidden',!hasExistingPlayers);
 
-    function closeModal(modalId) {
-      document.getElementById(modalId).classList.add('hidden');
-    }
+  const freeSeat=[1,2].find(i=>!state.players[i]);
+  el('create-guest-box').classList.toggle('hidden',!freeSeat);
 
-    function toggleApiKeyModal() {
-      document.getElementById('input-api-key').value = state.apiKey;
-      document.getElementById('input-supabase-url').value = state.supabaseUrl;
-      document.getElementById('input-supabase-key').value = state.supabaseKey;
-      openModal('modal-apikey');
-    }
+  if(!freeSeat&&!hasExistingPlayers){
+    state.mySeat=0;enterGame();toast('ห้องนี้เข้าได้ในโหมดผู้ชมเท่านั้น');return;
+  }
+  go('joinsetup');
+}
 
-    // ฟังก์ชันบันทึก API และ Supabase Config ลง LocalStorage
-    function saveApiAndDbKeys() {
-      const apiKeyVal = document.getElementById('input-api-key').value.trim();
-      const dbUrlVal = document.getElementById('input-supabase-url').value.trim();
-      const dbKeyVal = document.getElementById('input-supabase-key').value.trim();
+async function claimCharacter(seat){
+  state.mySeat=seat;
+  state.seats[seat]={client_id:CLIENT_ID,joined_at:Date.now()};
+  await flushSave();
+  enterGame();
+  toast('สวมบทบาทเป็น '+nameOf(seat)+' เรียบร้อย!','gain');
+}
 
-      state.apiKey = apiKeyVal;
-      state.supabaseUrl = dbUrlVal;
-      state.supabaseKey = dbKeyVal;
+async function confirmJoinNew(){
+  const nm=val('guest-name').trim();
+  if(!nm)return toast('ตั้งชื่อตัวละครก่อนครับ','lose');
+  el('btn-claim').disabled=true;
+  try{
+    const {data}=await sb.from('game_rooms').select('*').eq('room_code',_pendingJoinCode).maybeSingle();
+    applyRemoteRow(data,true);
+    const free=[1,2].find(i=>!state.players[i]);
+    if(!free){toast('ไม่มีที่นั่งว่างแล้ว เข้าชมแทนนะครับ','lose');state.mySeat=0;enterGame();return;}
 
-      localStorage.setItem('plapao_gemini_key', apiKeyVal);
-      localStorage.setItem('plapao_supabase_url', dbUrlVal);
-      localStorage.setItem('plapao_supabase_key', dbKeyVal);
+    state.seats[free]={client_id:CLIENT_ID,joined_at:Date.now()};
+    state.players[free]=Object.assign({},BASE,{name:nm,class:val('guest-class').trim()||'นักผจญภัย',items:[]});
+    state.mySeat=free;
+    await flushSave();
+    enterGame();
+    if(state.status==='playing')pushLog('sys','— '+nm+' เข้าร่วมการผจญภัยแล้ว —');
+    toast('ยินดีต้อนรับคุณ '+nm,'gain');
+  }finally{el('btn-claim').disabled=false;}
+}
 
-      closeModal('modal-apikey');
-      initSupabase();
-      appendSystemLog('[System] บันทึก API Key & Database ลงใน LocalStorage เรียบร้อย');
-      alert('บันทึกการตั้งค่าลง LocalStorage เรียบร้อยแล้ว!');
-    }
+function enterGame(){
+  el('room-pill').textContent=state.room;
+  go('game');renderStoryLog();updateUI();subscribeRoom(state.room);
+  history.replaceState(null,'','?room='+state.room);
+}
+function copyRoom(){navigator.clipboard.writeText(state.room);toast('คัดลอกรหัสห้องแล้ว','gain');}
+function shareRoom(){
+  const link=location.origin+location.pathname+'?room='+state.room;
+  if(navigator.share)navigator.share({title:'PLAPAO The GM',text:'มาเล่น Text RPG ด้วยกัน! รหัสห้อง '+state.room,url:link}).catch(()=>{});
+  else{navigator.clipboard.writeText(link);toast('คัดลอกลิงก์เรียบร้อย','gain');}
+}
+function leaveRoom(){
+  flushSave();
+  if(window._ch){window._ch.untrack&&window._ch.untrack();sb.removeChannel(window._ch);window._ch=null;}
+  clearInterval(window._poll);state.room=null;state.mySeat=0;
+  history.replaceState(null,'',location.pathname);
+  go('home');loadRoomList();
+}
 
-    function toggleMobileDrawer(side) {
-      const left = document.getElementById('drawer-left');
-      const right = document.getElementById('drawer-right');
-      if (side === 'left') {
-        const isClosed = left.classList.contains('-translate-x-full');
-        right.classList.add('translate-x-full');
-        left.classList.toggle('-translate-x-full', !isClosed);
-      } else {
-        const isClosed = right.classList.contains('translate-x-full');
-        left.classList.add('-translate-x-full');
-        right.classList.toggle('translate-x-full', !isClosed);
-      }
-    }
+/* ==========================================================
+   AI GM ENGINE
+   ========================================================== */
+const SYSTEM_GM_PROMPT=[
+'คุณคือ "PLAPAO The GM" ผู้ดำเนินเรื่อง Text RPG ออนไลน์ภาษาไทย สำหรับผู้เล่น 2 คน',
+'',
+'[กฎเหล็กเรื่องเทิร์นและการดำเนินเรื่อง]',
+'1. ในเนื้อเรื่อง ห้ามเรียกผู้เล่นว่า P1, P2 หรือ ผู้เล่น 1, 2 เด็ดขาด ให้เรียกด้วย "ชื่อตัวละครจริง" เสมอ',
+'2. ในแต่ละข้อความที่คุณตอบ ให้ปฏิบัติตามลำดับนี้อย่างเคร่งครัด:',
+'   - ย่อหน้าแรก: บรรยายผลลัพธ์จาก Action และแต้มเต๋าของคนที่เพิ่งเล่นจบไป ให้เห็นผลชัดเจนและมีอารมณ์ร่วม',
+'   - ย่อหน้าถัดไป: อธิบายสถานการณ์สิ่งแวดล้อมรอบตัว ศัตรู หรือเหตุการณ์ที่กำลังดำเนินต่อ',
+'   - ย่อหน้าสุดท้าย: สรุปอย่างชัดเจนว่า "ต่อไปถึงตาของ [ชื่อตัวละครคนถัดไป]" และตั้งคำถามว่าเขาจะทำอย่างไร',
+'3. ห้ามตัดสินใจหรือกระทำสิ่งสำคัญแทนผู้เล่นโดยเด็ดขาด บรรยายเฉพาะสิ่งที่เกิดกับพวกเขา',
+'4. ห้ามพิมพ์เลขสถานะในเนื้อหา เช่น "เลือดเหลือ 10" ให้บรรยายเป็นแผล รอยฉีกขาด หรือความเหนื่อยล้า แล้วใช้แท็กระบบเท่านั้น',
+'5. แท็กผลกระทบ (แนบท้ายข้อความบรรทัดละ 1 แท็ก):',
+'   [ITEM_ADD: P1 | ชื่อไอเทม]',
+'   [ITEM_REMOVE: P1 | ชื่อไอเทม]',
+'   [STAT_UPDATE: P1 | HP:-5]        (สเตตัส: HP, MAXHP, ATK, DEF, GOLD, LEVEL)',
+'   [STAT_UPDATE: P2 | GOLD:+20]',
+'   [QUEST_ADD: รายละเอียดภารกิจหรือเบาะแส]',
+'   [QUEST_DONE: ชื่อภารกิจ]',
+'   [NPC_MET: ชื่อ NPC]',
+'6. ทุกไอเทมและเงินทองจะเพิ่มเข้าตัวได้ ก็ต่อเมื่อคุณส่งแท็กระบบเท่านั้น ผู้เล่นเริ่มจาก 0',
+'7. การใช้ภาษา: ใช้ภาษาไทยที่สนุก น่าติดตาม บรรยายกระชับ (ประมาณ 2-3 ย่อหน้า)'
+].join('\n');
 
-    function closeAllDrawers() {
-      document.getElementById('drawer-left').classList.add('-translate-x-full');
-      document.getElementById('drawer-right').classList.add('translate-x-full');
-    }
+function buildStateContext(){
+  const line=i=>{const p=state.players[i];
+    if(!p)return 'P'+i+': (ไม่มีผู้เล่น)';
+    const bag=(p.items&&p.items.length)?p.items.join(', '):'ว่างเปล่า';
+    return 'P'+i+' = "'+p.name+'" ('+p.class+') Lv.'+p.level+' | HP '+p.hp+'/'+p.maxHp+
+      ' | ATK '+p.atk+' | DEF '+p.def+' | ทอง '+p.gold+' | กระเป๋า: '+bag;};
+  return ['[สถานะปัจจุบัน]',
+    line(1),line(2),
+    'เทิร์นที่ '+state.turnCount+' | ลำดับการเล่นปัจจุบันคือคิวของ: "'+nameOf(state.actingPlayer)+'"',
+    'ภารกิจ/เบาะแสค้างอยู่: '+((state.activeQuests||[]).join(' / ')||'ไม่มี'),
+    'NPC ที่พบ: '+((state.metNpcs||[]).join(', ')||'ยังไม่มี'),
+    'แนวเรื่อง: '+state.genre+(state.setting?(' | รายละเอียดฉาก: '+state.setting):'')].join('\n');
+}
 
-    function switchRightTab(tabName) {
-      ['items', 'quests', 'memory', 'log'].forEach(t => {
-        document.getElementById(`tab-content-${t}`).classList.add('hidden');
-        document.getElementById(`tab-btn-${t}`).className = 'py-1 bg-pix-panel text-gray-400';
-      });
-      document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
-      document.getElementById(`tab-btn-${tabName}`).className = 'py-1 bg-pix-white text-pix-black';
-    }
+async function callGeminiAPI(userText,isOoc=false){
+  const key=cfg(LS.gkey,'');if(!key)throw new Error('กรุณาใส่ Gemini API Key ในเมนูตั้งค่าก่อน');
+  const model=cfg(LS.model,DEF_MODEL);
+  
+  let sysPrompt = SYSTEM_GM_PROMPT;
+  if(isOoc){
+    sysPrompt = 'คุณคือ Game Master (GM) ตอบคำถามผู้เล่นนอกรอบ (Out of Character) เกี่ยวกับกฎ ฉาก รายละเอียดสภาพแวดล้อม ตอบสั้น กระชับ เป็นกันเอง และไม่ต้องออกแท็กระบบ';
+  }
 
-    function renderPixelRoleChoices(genre) {
-      const roles = THEME_ROLES_DATA[genre] || THEME_ROLES_DATA['Fantasy'];
-      const p1Grid = document.getElementById('p1-role-grid');
-      const p2Grid = document.getElementById('p2-role-grid');
+  const hist=(state.storyLogs||[]).slice(-12).filter(m=>['gm','p1','p2'].includes(m.role))
+    .map(m=>({role:m.role==='gm'?'model':'user',
+      parts:[{text:m.role==='gm'?m.text:('['+(m.name||nameOf(m.role==='p1'?1:2))+']: '+m.text)}]}));
       
-      document.getElementById('setup-p1-class').value = roles[0].name;
-      document.getElementById('setup-p2-class').value = roles[1].name;
+  const body={
+    systemInstruction:{parts:[{text:sysPrompt}]},
+    contents:hist.concat([{role:'user',parts:[{text:userText}]}]),
+    generationConfig:{temperature:0.9,topP:0.95,maxOutputTokens:1400}
+  };
+  const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+key,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok)throw new Error('Gemini API Error ('+res.status+'): '+(await res.text()).slice(0,180));
+  const d=await res.json();
+  const out=d&&d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts
+    ?d.candidates[0].content.parts.map(p=>p.text||'').join(''):'';
+  if(!out.trim())throw new Error('GM กำลังครุ่นคิด ลองส่งใหม่อีกครั้ง');
+  return out;
+}
 
-      p1Grid.innerHTML = roles.map((r, idx) => `
-        <button type="button" onclick="selectRolePill(1, '${r.name}')" class="role-choice-pill p1-role-pill ${idx === 0 ? 'active' : ''}">
-          <div class="font-bold">${r.name}</div>
-          <div class="text-[11px] text-gray-400">HP: ${r.hp} | ATK: ${r.atk} | DEF: ${r.def}</div>
-        </button>
-      `).join('');
+async function runGm(prompt,logRole,logText,isActionOutcome=false){
+  busy=true;updateTurnUI();
+  if(logRole)pushLog(logRole,logText,logRole.startsWith('p')?nameOf(Number(logRole[1])):null);
+  await flushSave();
+  showTyping();
+  try{
+    const raw=await callGeminiAPI(prompt,false);
+    hideTyping();
+    const r=processGmRewardsAndStats(raw);
+    if(r.cleanedText)pushLog('gm',r.cleanedText);
+    r.notifications.forEach(n=>pushLog('notif',n));
 
-      p2Grid.innerHTML = roles.map((r, idx) => `
-        <button type="button" onclick="selectRolePill(2, '${r.name}')" class="role-choice-pill p2-role-pill ${idx === 1 ? 'active' : ''}">
-          <div class="font-bold">${r.name}</div>
-          <div class="text-[11px] text-gray-400">HP: ${r.hp} | ATK: ${r.atk} | DEF: ${r.def}</div>
-        </button>
-      `).join('');
+    if(isActionOutcome){
+      state.actingPlayer=other(state.actingPlayer);
+      state.turnCount++;
+      state.pendingRoll=null;
     }
+  }catch(e){
+    hideTyping();console.error(e);pushLog('sys','⚠ '+e.message);toast(e.message,'lose');
+  }finally{
+    busy=false;await flushSave();updateUI();
+  }
+}
 
-    function selectRolePill(playerNum, roleName) {
-      document.getElementById(`setup-p${playerNum}-class`).value = roleName;
-      document.querySelectorAll(`.p${playerNum}-role-pill`).forEach(p => {
-        p.classList.toggle('active', p.querySelector('.font-bold')?.textContent.trim() === roleName);
-      });
-    }
+/* ==========================================================
+   GAMEPLAY & DICE ROLLING FLOW
+   ========================================================== */
+async function startAdventure(){
+  if(state.mySeat!==1)return;
+  if(!cfg(LS.gkey,''))return toast('ใส่ Gemini API Key ก่อนเริ่มเล่นครับ','lose');
+  state.status='playing';renderLobby();
+  const names=[1,2].map(i=>state.players[i]?('"'+state.players[i].name+'" ('+state.players[i].class+')'):null)
+    .filter(Boolean).join(' และ ');
+  const opener=buildStateContext()+'\n\n[คำสั่งสำหรับฉากเปิด]\nบรรยายเปิดฉากแรกของการผจญภัย แนะนำโลกและสถานการณ์เริ่มต้นตามแนวเรื่อง '+state.genre+' '+
+    'โดยมีผู้ร่วมผจญภัยคือ '+names+' และจบข้อความด้วยการส่งเทิร์นถามการกระทำของ "'+nameOf(1)+'" คนแรก';
+  await runGm(opener,'sys','— การผจญภัยเริ่มต้นขึ้นอย่างเป็นทางการ —',false);
+}
 
-    function setModalGenre(genre) {
-      state.selectedGenre = genre;
-      document.querySelectorAll('.modal-genre-chip').forEach(chip => {
-        const text = chip.textContent.trim();
-        const active = (genre === 'Custom' && text.includes('แต่งเรื่องเอง')) || text.toLowerCase() === genre.toLowerCase();
-        chip.className = active 
-          ? 'modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-blue-900 border-white text-white'
-          : 'modal-genre-chip pixel-btn p-2 text-sm font-sans font-bold text-center bg-pix-dark border-gray-600 text-gray-300';
-      });
+function sendAction(){
+  if(busy||state.status!=='playing')return;
+  const text=val('in-action').trim();if(!text)return;
+  if(!state.mySeat)return toast('คุณอยู่ในโหมดผู้ชม ไม่สามารถเล่นได้','lose');
+  if(state.pendingRoll!=null)return toast('กรุณากดทอยเต๋า D20 ก่อนดำเนินต่อ','lose');
+  if(state.actingPlayer!==state.mySeat)return toast('ยังไม่ถึงตาของคุณ กรุณารอเพื่อน','lose');
+  if(state.players[state.mySeat].hp===0)return toast(nameOf(state.mySeat)+' หมดสติอยู่ ทำแอคชั่นไม่ได้','lose');
 
-      document.getElementById('custom-story-container').classList.toggle('hidden', genre !== 'Custom');
-      renderPixelRoleChoices(genre);
-    }
+  el('in-action').value='';
+  state.lastActionText=text;
+  state.pendingRoll=state.mySeat;
+  pushLog('p'+state.mySeat,text,nameOf(state.mySeat));
+  toast('ส่งการกระทำแล้ว! กดทอยเต๋า D20 เพื่อตัดสินผล','gain');
+  queueSave(50);
+  updateTurnUI();
+}
 
-    function selectGenreAndStart(genre) {
-      setModalGenre(genre);
-      openCreateGameModal();
-    }
+async function executeDiceRoll(){
+  if(busy||state.pendingRoll==null)return;
+  const who=state.pendingRoll;
+  if(who!==state.mySeat)return toast('รอให้ '+nameOf(who)+' เป็นคนทอยเต๋า','lose');
 
-    function openCreateGameModal() {
-      setModalGenre(state.selectedGenre);
-      openModal('modal-create-game');
-    }
+  busy=true;el('dice-btn').disabled=true;
+  const n=el('dice-num');n.classList.add('rolling');
+  const spin=setInterval(()=>{n.textContent=Math.floor(Math.random()*20)+1;},50);
 
-    function confirmCreateGame() {
-      const p1Name = document.getElementById('setup-p1-name').value.trim() || 'Player 1';
-      const p1Class = document.getElementById('setup-p1-class').value.trim() || 'นักรบ';
-      const p2Name = document.getElementById('setup-p2-name').value.trim() || 'Player 2';
-      const p2Class = document.getElementById('setup-p2-class').value.trim() || 'จอมเวท';
+  setTimeout(async()=>{
+    clearInterval(spin);n.classList.remove('rolling');
+    const roll=Math.floor(Math.random()*20)+1;
+    n.textContent=roll;
+    
+    let grade='สำเร็จ';
+    if(roll===20) grade='สำเร็จอย่างปาฏิหาริย์ (Critical Success!)';
+    else if(roll===1) grade='หายนะร้ายแรง (Critical Fumble!)';
+    else if(roll<=8) grade='ล้มเหลว';
+    else if(roll<=13) grade='สำเร็จแบบเฉียดฉิว/มีอุปสรรคตามมา';
+    else grade='สำเร็จอย่างราบรื่น';
 
-      const balanced = calculateBalancedStats(p1Class, p2Class);
+    toast('🎲 '+nameOf(who)+' ทอยได้ '+roll+' แต้ม ('+grade+')',roll>=10?'gain':'lose');
+    pushLog('sys','🎲 '+nameOf(who)+' ทอยเต๋า D20 ได้: '+roll+' แต้ม ('+grade+')');
 
-      state.players[1].name = p1Name;
-      state.players[1].class = p1Class;
-      state.players[1].hp = balanced.p1.hp;
-      state.players[1].maxHp = balanced.p1.maxHp;
-      state.players[1].atk = balanced.p1.atk;
-      state.players[1].def = balanced.p1.def;
-      state.players[1].items = []; // เริ่มต้นไม่มีไอเทม
+    const p=buildStateContext()+'\n\n[ข้อมูลการกระทำและการตัดสิน]\n'+
+      'ผู้กระทำ: "'+nameOf(who)+'"\n'+
+      'การกระทำที่ต้องการทำ: "'+state.lastActionText+'"\n'+
+      'ผลการทอย D20: '+roll+' แต้ม ('+grade+')\n\n'+
+      '[คำสั่งสำหรับ GM]:\n'+
+      '1. ตัดสินผลลัพธ์ของ "'+nameOf(who)+'" ตามแต้มเต๋าที่ได้\n'+
+      '2. คำนวณความเสียหาย/ได้รับของ/พบเบาะแส แนบแท็กระบบตามจริง\n'+
+      '3. ย่อหน้าสุดท้าย ให้ส่งเทิร์นต่อและถาม Action ของ "'+nameOf(other(who))+'" อย่างเจาะจง';
 
-      state.players[2].name = p2Name;
-      state.players[2].class = p2Class;
-      state.players[2].hp = balanced.p2.hp;
-      state.players[2].maxHp = balanced.p2.maxHp;
-      state.players[2].atk = balanced.p2.atk;
-      state.players[2].def = balanced.p2.def;
-      state.players[2].items = []; // เริ่มต้นไม่มีไอเทม
+    state.lastActionText='';
+    await runGm(p,null,null,true);
+  },800);
+}
 
-      state.customSettingText = state.selectedGenre === 'Custom' ? document.getElementById('custom-story-prompt').value.trim() : '';
-      state.currentRoomCode = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
-      state.storyLogs = [];
-      state.turnCount = 1;
-      state.actingPlayer = 1;
-      state.worldSummary = 'เพิ่งเริ่มต้นการเดินทางผจญภัย';
-      state.lastActionText = '';
-      setRollPendingState(false);
+async function sendAskGm(){
+  if(busy)return;
+  const text=val('in-ask').trim();if(!text)return;
+  el('in-ask').value='';
+  pushLog('ask-gm',text,nameOf(state.mySeat||1));
+  showTyping();
+  busy=true;
+  try{
+    const prompt='[ผู้เล่นถาม GM นอกรอบ]\n"'+nameOf(state.mySeat||1)+'" ถามว่า: "'+text+'"\n\nตอบข้อสงสัยนี้ในฐานะ GM อย่างกระชับและชัดเจน:';
+    const ans=await callGeminiAPI(prompt,true);
+    hideTyping();
+    pushLog('gm','💬 [ตอบนอกรอบ]: '+ans);
+  }catch(e){
+    hideTyping();pushLog('sys','⚠ '+e.message);
+  }finally{
+    busy=false;queueSave();updateUI();
+  }
+}
 
-      document.getElementById('story-log').innerHTML = '';
-      document.getElementById('room-code-display').textContent = state.currentRoomCode;
-      document.getElementById('world-summary-display').textContent = state.worldSummary;
+async function shortRest(){
+  if(busy||state.status!=='playing'||!state.mySeat)return;
+  if(state.actingPlayer!==state.mySeat)return toast('สามารถสั่งพักฟื้นได้เฉพาะในเทิร์นของคุณเท่านั้น','lose');
+  if(!confirm('ต้องการใช้เทิร์นนี้เพื่อตั้งค่ายพักฟื้นหรือไม่?'))return;
 
-      updateUI();
-      closeModal('modal-create-game');
-      showScreen('game');
+  state.lastActionText='หาที่ปลอดภัยเพื่อหยุดพักฟื้นฟูร่างกายและสมาธิ';
+  state.pendingRoll=state.mySeat;
+  pushLog('p'+state.mySeat,state.lastActionText,nameOf(state.mySeat));
+  toast('ตั้งค่ายพักฟื้น! ทอยเต๋า D20 เพื่อดูว่าราบรื่นหรือไม่','gain');
+  queueSave(50);
+  updateTurnUI();
+}
 
-      triggerInitialStory();
-    }
+el('in-action').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendAction();}});
+el('in-ask').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendAskGm();}});
 
-    function setActingPlayer(pNum) {
-      state.actingPlayer = pNum;
-      updateUI();
-    }
-
-    function setRollPendingState(isRequired) {
-      state.pendingRoll = isRequired;
-      const rollBtn = document.getElementById('dice-roll-btn');
-      const tip = document.getElementById('roll-status-tip');
-      const actionInput = document.getElementById('action-input');
-      const sendBtn = document.getElementById('send-btn');
-      
-      if (isRequired) {
-        rollBtn.disabled = false;
-        rollBtn.className = 'pixel-btn bg-purple-600 hover:bg-purple-500 text-white text-sm font-sans font-bold px-3 py-1.5 flex items-center gap-1.5 animate-bounce';
-        rollBtn.innerHTML = '🎲 ทอยเต๋า D20 วัดผลสำเร็จ!';
-        tip.textContent = '⚡ PLAPAO GM สั่งให้ทอยเต๋า!';
-        tip.className = 'text-sm text-yellow-300 font-sans font-bold';
-        actionInput.disabled = true;
-        sendBtn.disabled = true;
-      } else {
-        rollBtn.disabled = true;
-        rollBtn.className = 'pixel-btn bg-purple-950 text-gray-500 text-sm font-sans font-bold px-3 py-1.5 flex items-center gap-1.5';
-        rollBtn.innerHTML = '🔒 รอดูผลจาก GM';
-        tip.textContent = 'ส่ง Action ก่อนถึงจะรู้ว่าต้องทอยไหม';
-        tip.className = 'text-sm text-gray-400 font-sans';
-        actionInput.disabled = false;
-        sendBtn.disabled = false;
-      }
-    }
-
-    async function executeDiceRoll() {
-      if (!state.pendingRoll) return;
-
-      const roll = Math.floor(Math.random() * 20) + 1;
-      const pName = state.players[state.actingPlayer].name;
-      
-      const badge = document.getElementById('dice-result-badge');
-      badge.textContent = `🎲 ROLL: ${roll}`;
-      badge.classList.remove('hidden');
-
-      appendStory('ผลการทอย', `🎲 **${pName}** ทอยลูกเต๋า D20 ได้แต้ม: **${roll} / 20**`, state.actingPlayer === 1 ? 'p1' : 'p2');
-      setRollPendingState(false);
-
-      const prompt = `
-${buildGmPrompt(state.lastActionText)}
-ผลการทอยลูกเต๋า D20 ล่าสุด: ${roll} / 20
-
-คำสั่ง PLAPAO The GM:
-บรรยายผลลัพธ์ว่า Action สำเร็จหรือล้มเหลวตามแต้ม ${roll} (1-9 = พลาด, 10-14 = สำเร็จเฉียดฉิว, 15-20 = สำเร็จยอดเยี่ยม) หากมีการพบเจอไอเทมใหม่ให้ใส่แท็ก [ITEM_ADD: P1/P2 | ชื่อไอเทม] และดำเนินเรื่องต่อพร้อมรอการกระทำถัดไป:`;
-
-      let aiResponse = await callGeminiAPI(prompt);
-      aiResponse = processGmItemRewards(aiResponse); // ตรวจจับไอเทมใหม่
-      appendStory('PLAPAO The GM', aiResponse, 'gm');
-
-      updateWorldSummaryBackground(state.lastActionText + ` (ทอยได้ ${roll})`, aiResponse);
-
-      state.actingPlayer = state.actingPlayer === 1 ? 2 : 1;
-      state.turnCount += 1;
-      updateUI();
-    }
-
-    function updateUI() {
-      // P1 UI Update
-      document.getElementById('p1-name-display').textContent = state.players[1].name;
-      document.getElementById('p1-class-display').textContent = state.players[1].class;
-      document.getElementById('p1-hp-text').textContent = `${state.players[1].hp}/${state.players[1].maxHp}`;
-      document.getElementById('p1-hp-bar').style.width = `${(state.players[1].hp / state.players[1].maxHp) * 100}%`;
-      document.getElementById('p1-atk').textContent = state.players[1].atk;
-      document.getElementById('p1-def').textContent = state.players[1].def;
-      document.getElementById('p1-gold').textContent = state.players[1].gold;
-
-      // P2 UI Update
-      document.getElementById('p2-name-display').textContent = state.players[2].name;
-      document.getElementById('p2-class-display').textContent = state.players[2].class;
-      document.getElementById('p2-hp-text').textContent = `${state.players[2].hp}/${state.players[2].maxHp}`;
-      document.getElementById('p2-hp-bar').style.width = `${(state.players[2].hp / state.players[2].maxHp) * 100}%`;
-      document.getElementById('p2-atk').textContent = state.players[2].atk;
-      document.getElementById('p2-def').textContent = state.players[2].def;
-      document.getElementById('p2-gold').textContent = state.players[2].gold;
-
-      const p1Btn = document.getElementById('actor-p1-btn');
-      const p2Btn = document.getElementById('actor-p2-btn');
-      p1Btn.className = state.actingPlayer === 1 
-        ? 'px-2.5 py-1 text-sm font-sans font-bold bg-blue-600 text-white border border-white' 
-        : 'px-2.5 py-1 text-sm font-sans font-bold bg-pix-panel text-gray-400 border border-gray-600';
-      p2Btn.className = state.actingPlayer === 2 
-        ? 'px-2.5 py-1 text-sm font-sans font-bold bg-pink-600 text-white border border-white' 
-        : 'px-2.5 py-1 text-sm font-sans font-bold bg-pix-panel text-gray-400 border border-gray-600';
-
-      document.getElementById('current-genre-tag').textContent = state.selectedGenre;
-      document.getElementById('turn-display-panel').textContent = `⚔️ ตาของ ${state.players[state.actingPlayer].name}`;
-      document.getElementById('mobile-turn-indicator').textContent = `เทิร์น: P${state.actingPlayer} (${state.players[state.actingPlayer].name.substring(0, 8)})`;
-
-      // Render Item List
-      const p1ItemsHtml = state.players[1].items.length > 0 
-        ? state.players[1].items.map(i => `<li>• ${i}</li>`).join('')
-        : '<li class="text-gray-500 text-sm italic">(ยังไม่มีไอเทม)</li>';
-      const p2ItemsHtml = state.players[2].items.length > 0 
-        ? state.players[2].items.map(i => `<li>• ${i}</li>`).join('')
-        : '<li class="text-gray-500 text-sm italic">(ยังไม่มีไอเทม)</li>';
-
-      document.getElementById('p1-items-list').innerHTML = p1ItemsHtml;
-      document.getElementById('p2-items-list').innerHTML = p2ItemsHtml;
-    }
-
-    function appendStory(sender, text, type = 'gm') {
-      const logContainer = document.getElementById('story-log');
-      const msgDiv = document.createElement('div');
-
-      if (type === 'gm') {
-        msgDiv.className = 'pixel-box p-3.5 sm:p-4 bg-pix-panel border-l-4 border-l-yellow-500 space-y-1.5';
-        msgDiv.innerHTML = `
-          <div class="text-xs font-pixel text-yellow-400 flex justify-between">
-            <span>🎲 PLAPAO The GM</span>
-            <span class="text-gray-400">TURN ${state.turnCount}</span>
-          </div>
-          <p class="text-gray-100 text-base md:text-lg leading-relaxed font-sans">${text}</p>
-        `;
-      } else {
-        const isP1 = type === 'p1';
-        msgDiv.className = `p-3 ${isP1 ? 'bg-blue-950/60 border-blue-500/70' : 'bg-pink-950/60 border-pink-500/70'} border rounded space-y-1 ml-2 sm:ml-4`;
-        msgDiv.innerHTML = `
-          <div class="text-xs font-pixel ${isP1 ? 'text-blue-300' : 'text-pink-300'}">👤 ${sender}</div>
-          <p class="text-white text-base md:text-lg font-sans">${text}</p>
-        `;
-      }
-
-      logContainer.appendChild(msgDiv);
-      logContainer.scrollTop = logContainer.scrollHeight;
-      state.storyLogs.push({ sender, text, type });
-
-      if (type === 'gm') {
-        const lower = text.toLowerCase();
-        if (lower.includes('ทอยลูกเต๋า') || lower.includes('ทอยเต๋า') || lower.includes('roll d20') || lower.includes('ทอย d20')) {
-          setRollPendingState(true);
-        } else {
-          setRollPendingState(false);
-        }
-      }
-    }
-
-    function appendSystemLog(msg) {
-      state.systemLogs.push(msg);
-      const logBox = document.getElementById('system-summary-log');
-      logBox.innerHTML = state.systemLogs.map(l => `<div>${l}</div>`).join('');
-      logBox.scrollTop = logBox.scrollHeight;
-    }
-
-    async function triggerInitialStory() {
-      const p1 = state.players[1];
-      const p2 = state.players[2];
-      const setting = state.selectedGenre === 'Custom' ? `พล็อตเรื่องกำหนดเอง: "${state.customSettingText}"` : `ธีม ${state.selectedGenre}`;
-      
-      const prompt = `เริ่มต้นเรื่องราวการผจญภัย (${setting}) สำหรับ 2 ผู้เล่น:
-- P1: ${p1.name} (${p1.class}) [HP: ${p1.hp}, ATK: ${p1.atk}, DEF: ${p1.def}]
-- P2: ${p2.name} (${p2.class}) [HP: ${p2.hp}, ATK: ${p2.atk}, DEF: ${p2.def}]
-
-บรรยายเปิดฉากสถานที่และสถานการณ์แรกเริ่ม 3-4 ประโยค และรอให้ผู้เล่นพิมพ์ Action แรกของการเดินทาง (ยังไม่ต้องสั่งทอยเต๋าในฉากแรก)`;
-
-      appendStory('PLAPAO The GM', 'กำลังเปิดฉากการผจญภัย...', 'gm');
-      let aiResponse = await callGeminiAPI(prompt);
-      document.getElementById('story-log').removeChild(document.getElementById('story-log').lastChild);
-      
-      aiResponse = processGmItemRewards(aiResponse);
-      appendStory('PLAPAO The GM', aiResponse, 'gm');
-
-      state.worldSummary = `เริ่มต้นการผจญภัยในธีม ${state.selectedGenre}: ${aiResponse.substring(0, 100)}...`;
-      document.getElementById('world-summary-display').textContent = state.worldSummary;
-      saveGameToSupabase(true);
-    }
-
-    async function handlePlayerAction(event) {
-      event.preventDefault();
-      const input = document.getElementById('action-input');
-      const actionText = input.value.trim();
-      if (!actionText || state.pendingRoll) return;
-
-      state.lastActionText = actionText;
-      appendStory(state.players[state.actingPlayer].name, actionText, state.actingPlayer === 1 ? 'p1' : 'p2');
-      input.value = '';
-
-      const prompt = buildGmPrompt(actionText) + `
-คำสั่ง PLAPAO The GM:
-1. หาก Action นี้มีความเสี่ยง/อันตราย/โอกาสพลาด ให้บรรยายจังหวะเข้าทำ และสั่งให้ผู้เล่น "ทอยลูกเต๋า D20"
-2. หากเป็นการกระทำปกติ ให้บรรยายผลลัพธ์และดำเนินเรื่องต่อได้เลยโดยไม่ต้องสั่งทอย
-3. หากผู้เล่นได้รับไอเทมจากการกระทำนี้ ให้ใส่แท็ก [ITEM_ADD: P1/P2 | ชื่อไอเทม] มาด้วย`;
-
-      let aiResponse = await callGeminiAPI(prompt);
-      aiResponse = processGmItemRewards(aiResponse);
-      appendStory('PLAPAO The GM', aiResponse, 'gm');
-
-      if (!state.pendingRoll) {
-        updateWorldSummaryBackground(actionText, aiResponse);
-        state.actingPlayer = state.actingPlayer === 1 ? 2 : 1;
-        state.turnCount += 1;
-        updateUI();
-      }
-    }
-
-    async function callGeminiAPI(userQuery) {
-      if (!state.apiKey) {
-        await new Promise(r => setTimeout(r, 600));
-        const isRisky = userQuery.includes('โจมตี') || userQuery.includes('ฟัน') || userQuery.includes('กระโดด') || userQuery.includes('หนี');
-        if (isRisky) return `สถานการณ์นี้อันตรายมาก! โปรดทำการ ทอยลูกเต๋า D20 เพื่อตัดสินผลลัพธ์!`;
-        return `คุณได้ทำสิ่งนั้นอย่างระมัดระวัง บรรยากาศรอบข้างเปลี่ยนไปเล็กน้อย... พวกคุณจะทำอะไรต่อ?`;
-      }
-
-      try {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`;
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: userQuery }] }],
-            systemInstruction: { parts: [{ text: SYSTEM_GM_PROMPT }] }
-          })
-        });
-        const data = await res.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || "เกิดข้อผิดพลาดในการประมวลผลข้อมูล";
-      } catch (err) {
-        return "ไม่สามารถเชื่อมต่อ Gemini API ได้ (ระบบเข้าสู่โหมดจำลอง)";
-      }
-    }
-
-    window.onload = function() {
-      loadSavedKeys();
-      renderPixelRoleChoices('Fantasy');
-      updateUI();
-    };
-  </script>
+/* ---------- BOOT ---------- */
+loadConfig();initSupabase();loadRoomList();
+const qRoom=new URLSearchParams(location.search).get('room');
+if(qRoom){el('in-room').value=qRoom.toUpperCase();setTimeout(()=>joinRoom(qRoom.toUpperCase()),400);}
+</script>
 </body>
 </html>
